@@ -8,12 +8,24 @@ from django.utils.translation import ugettext_lazy
 from django_workflow.utils import import_from, import_from_path
 
 
+class WorkflowManager(models.Manager):
+
+    def get_by_natural_key(self, name):
+        return self.get(name=name)
+
+
 class Workflow(models.Model):
-    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
-    initial_state = models.OneToOneField("State", null=True, blank=True, verbose_name=ugettext_lazy("Initial State"), related_name="starts_workflow")
+
+    @property
+    def initial_state(self):
+        return State.objects.get(workflow=self, initial=True)
 
     def __unicode__(self):
+        return self.name
+
+    def natural_key(self):
         return self.name
 
     def add_object(self, object_id, async=True):
@@ -24,17 +36,40 @@ class Workflow(models.Model):
         return import_from_path(self.object_type)
 
 
+class StateManager(models.Manager):
+
+    def get_by_natural_key(self, name, workflow):
+        return self.get(name=name, workflow__name=workflow)
+
 
 class State(models.Model):
     name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"))
-    active = models.BooleanField( verbose_name=ugettext_lazy("Active"))
+    active = models.BooleanField(verbose_name=ugettext_lazy("Active"))
+    initial = models.BooleanField(default=False, verbose_name=ugettext_lazy("Initial"))
+
+    class Meta:
+        unique_together = (('name', 'workflow'),)
 
     def __unicode__(self):
         return "{}: {}".format(self.workflow.name, self.name)
 
+    def natural_key(self):
+        return (self.name, self.workflow.name)
+
     def available_transitions(self, user, object_id, automatic=False):
         return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic)]
+
+
+class TransitionManager(models.Manager):
+
+    def get_by_natural_key(self, name, workflow, initial_state, final_state):
+        return self.get(
+            name=name,
+            initial_state__workflow__name=workflow,
+            initial_state__name=initial_state,
+            final_state__name=final_state
+        )
 
 
 class Transition(models.Model):
@@ -48,22 +83,21 @@ class Transition(models.Model):
 
     class Meta:
         ordering = ["priority"]
+        unique_together = (('name', 'initial_state', 'final_state'),)
 
     def __unicode__(self):
         return "{}{}: {} to {}".format(self.initial_state.workflow.name, "("+self.name+")" if self.name else "", self.initial_state.name, self.final_state.name)
 
+    def natural_key(self):
+        return (self.name, self.initial_state.workflow.name, self.initial_state.name, self.final_state.name)
+
     def is_available(self, user, object_id, automatic=False):
-        #print("checking {}". format(self))
-        #print("object_id: {}, state: {}".format(object_id, self.initial_state.id))
-        #print(CurrentObjectState.objects.all())
         if CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id).exists():
             conditions = self.condition_set.all()
             if len(conditions) == 0:
-                #print("... no conditions")
                 return self.automatic == automatic
             else:
                 root_condition = conditions.first()
-                #print("... root condition: {}".format(root_condition))
                 return root_condition.check_condition(object_id, user ) and self.automatic == automatic
         else:
             return False

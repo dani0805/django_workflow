@@ -10,9 +10,7 @@ class TransitionTest(TestCase):
 
     def setUp(self):
         wf = Workflow.objects.create(name="Test_Workflow", object_type="django.contrib.auth.models.User")
-        s1 = State.objects.create(name="state 1", workflow=wf, active=True)
-        wf.initial_state = s1
-        wf.save()
+        s1 = State.objects.create(name="state 1", workflow=wf, active=True, initial=True)
         s2 = State.objects.create(name="state 2", workflow=wf, active=True)
         s3 = State.objects.create(name="state 3", workflow=wf, active=True)
         t1 = Transition.objects.create(initial_state=s1, final_state=s2, automatic=True)
@@ -42,3 +40,6 @@ class TransitionTest(TestCase):
         manual[0].execute(user, user.id)
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 3")
+
+    def test_export(self):
+        workflow.export_workflow("Test_Workflow", None)

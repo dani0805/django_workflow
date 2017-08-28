@@ -1,4 +1,6 @@
-from django_workflow.models import Workflow, State, CurrentObjectState
+from django.core import serializers
+
+from django_workflow.models import Workflow, State, CurrentObjectState, Transition
 
 
 def get_workflow(name):
@@ -18,3 +20,12 @@ def get_object_state(workflow_name, object_id):
         return state
     else:
         raise ValueError("object_id {} not found in workflow {}!".format(object_id, workflow_name))
+
+
+def export_workflow(workflow_name, file):
+    data = serializers.serialize('json', Workflow.objects.all())
+    print(data)
+    data = serializers.serialize('json', State.objects.all())
+    print(data)
+    data = serializers.serialize('json', Transition.objects.all())
+    print(data)
