@@ -5,9 +5,7 @@ from django.db import models, transaction
 from django.utils.translation import ugettext_lazy
 
 # import a definition from a module at runtime
-def import_from(module, name):
-    module = __import__(module, fromlist=[name])
-    return getattr(module, name)
+from django_workflow.utils import import_from, import_from_path
 
 
 class Workflow(models.Model):
@@ -18,8 +16,12 @@ class Workflow(models.Model):
     def __unicode__(self):
         return self.name
 
-    def get_states(self):
-        return self.state_set.all()
+    def add_object(self, object_id):
+        CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
+
+    def object_class(self):
+        return import_from_path(self.object_type)
+
 
 
 class State(models.Model):
@@ -29,7 +31,6 @@ class State(models.Model):
 
     def __unicode__(self):
         return "{}: {}".format(self.workflow.name, self.name)
-
 
     def available_transitions(self, user, object_id):
         return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id)]
@@ -76,7 +77,7 @@ def _execute_transition(transition, user, object_id, automatic=False):
         # now trigger all async callbacks
         for c in transition.callback_set.filter(execute_async=True):
             params = {p.name: p.value for p in c.callback_parameter_set.all()}
-            thr = threading.Thread(target=c.function, args=(user, object_id), kwargs=params)
+            thr = threading.Thread(target=c.function, args=(transition.initial_state.workflow, user, object_id), kwargs=params)
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
         automatic_transitions = transition.final_state.outgoing_transitions.filter(automatic=True)
@@ -90,7 +91,7 @@ def _execute_transition(transition, user, object_id, automatic=False):
 def _atomic_execution(object_id, transition, user):
     for c in transition.callback_set.filter(execute_async=False):
         params = {p.name: p.value for p in c.callback_parameter_set.all()}
-        c.function(user, object_id, **params)
+        c.function(transition.initial_state.workflow, user, object_id, **params)
     objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
     objState.state = transition.final_state
     objState.save()
