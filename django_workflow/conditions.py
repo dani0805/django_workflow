@@ -1,13 +1,44 @@
 # import a definition from a module at runtime
+import numbers
+
 from django.db.models.manager import Manager
 
 from django_workflow.utils import import_from, import_from_path
 
+def equals(attr, val):
+    if type(attr) == type(True):
+        return attr == (val == "True")
+    elif isinstance(attr, numbers.Number):
+        return attr == float(val)
+    else:
+        return attr == val
+
+def object_attribute_value(workflow, object_id, user, **filter):
+    params = parse_parameters(filter, object_id, user, workflow)
+    if "attribute_name" in params:
+        attribute_name = params.pop('attribute_name')
+        object = workflow.object_class().objects.get(id=object_id)
+        attribute = getattr(object, attribute_name)
+        if "attribute_value" in params:
+            attribute_value = params.pop('attribute_value')
+            return equals(attribute, attribute_value)
+    raise ValueError("missing parameter attribute_name or attribute_value")
+
+
+def user_attribute_value(workflow, object_id, user, **filter):
+    params = parse_parameters(filter, object_id, user, workflow)
+    if "attribute_name" in params:
+        attribute_name = params.pop('attribute_name')
+        attribute = getattr(user, attribute_name)
+        if "attribute_value" in params:
+            attribute_value = params.pop('attribute_value')
+            return equals(attribute, attribute_value)
+    raise ValueError("missing parameter attribute_name or attribute_value")
 
 def object_attribute_filter_exist(workflow, object_id, user, **filter):
     params = parse_parameters(filter, object_id, user, workflow)
     if "attribute_name" in params:
-        attribute_name = params.pop('model_type')
+        attribute_name = params.pop('attribute_name')
         object = workflow.object_class().objects.get(id=object_id)
         attribute = getattr(object, attribute_name)
         return attribute.filter(**params).exists()
@@ -18,7 +49,7 @@ def object_attribute_filter_exist(workflow, object_id, user, **filter):
 def user_attribute_filter_exist(workflow, object_id, user, **filter):
     params = parse_parameters(filter, object_id, user, workflow)
     if "attribute_name" in params:
-        attribute_name = params.pop('model_type')
+        attribute_name = params.pop('attribute_name')
         attribute = getattr(user, attribute_name)
         return attribute.filter(**params).exists()
     else:
@@ -61,7 +92,8 @@ def parse_parameters(filter, object_id, user, workflow):
                     o = getattr(o, p, None)
                     if o == None:
                         continue
-            params.update({k, o})
+            params.update({k: o})
         else:
-            params.update({k, v})
+            #print("{}: {}".format(k, v))
+            params.update({k: v})
     return params

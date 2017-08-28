@@ -1,4 +1,4 @@
-from django_workflow.models import Workflow, State
+from django_workflow.models import Workflow, State, CurrentObjectState
 
 
 def get_workflow(name):
@@ -9,7 +9,7 @@ def get_available_transitions(workflow_name, user, object_id):
     wf = get_workflow(workflow_name)
     if not wf:
         raise ValueError("wokflow {} not found!".format(workflow_name))
-    state = State.objects.filter(object_id=object_id, workflow=wf)
+    state = CurrentObjectState.objects.get(id=object_id, state__workflow__id=wf.id).state
     if state:
         return state.available_transitions(user, object_id)
     else:

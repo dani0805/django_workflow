@@ -32,8 +32,8 @@ class State(models.Model):
     def __unicode__(self):
         return "{}: {}".format(self.workflow.name, self.name)
 
-    def available_transitions(self, user, object_id):
-        return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id)]
+    def available_transitions(self, user, object_id, automatic=False):
+        return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic)]
 
 
 class Transition(models.Model):
@@ -52,13 +52,18 @@ class Transition(models.Model):
         return "{}{}: {} to {}".format(self.initial_state.workflow.name, "("+self.name+")" if self.name else "", self.initial_state.name, self.final_state.name)
 
     def is_available(self, user, object_id, automatic=False):
-        if CurrentObjectState.objects.filter(object_id=object_id, state=self.initial_state).exists():
+        #print("checking {}". format(self))
+        #print("object_id: {}, state: {}".format(object_id, self.initial_state.id))
+        #print(CurrentObjectState.objects.all())
+        if CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id).exists():
             conditions = self.condition_set.all()
             if len(conditions) == 0:
+                #print("... no conditions")
                 return self.automatic == automatic
             else:
                 root_condition = conditions.first()
-                return root_condition.check(user, object_id) and self.automatic == automatic
+                #print("... root condition: {}".format(root_condition))
+                return root_condition.check_condition(object_id, user ) and self.automatic == automatic
         else:
             return False
 
@@ -129,8 +134,9 @@ class Condition(models.Model):
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
-            params = {p.name: p.value for p in func.function_parameter_set.all()}
-            return call(object_id, user, **params)
+            params = {p.name: p.value for p in func.parameters.all()}
+            wf = self.transition.initial_state.workflow
+            return call(wf, object_id, user, **params)
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(object_id, user)
@@ -156,7 +162,7 @@ class Function(models.Model):
 
 
 class FunctionParameter(models.Model):
-    function = models.ForeignKey(Function, verbose_name=ugettext_lazy("Function"))
+    function = models.ForeignKey(Function, verbose_name=ugettext_lazy("Function"), related_name="parameters")
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 
@@ -190,6 +196,9 @@ class CurrentObjectState(models.Model):
     object_id = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object Id"))
     state = models.ForeignKey(State, verbose_name=ugettext_lazy("State"))
     updated_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Last Updated"))
+
+    def __unicode__(self):
+        return "{} in state {} since {}".format(self.object_id, self.state, self.updated_ts)
 
 
 class TransitionLog(models.Model):
