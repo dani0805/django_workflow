@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.test import TestCase
 
 from django.contrib.auth.models import User
@@ -11,6 +12,7 @@ class TransitionTest(TestCase):
         wf = Workflow.objects.create(name="Test_Workflow", object_type="django.contrib.auth.models.User")
         s1 = State.objects.create(name="state 1", workflow=wf, active=True)
         wf.initial_state = s1
+        wf.save()
         s2 = State.objects.create(name="state 2", workflow=wf, active=True)
         s3 = State.objects.create(name="state 3", workflow=wf, active=True)
         t1 = Transition.objects.create(initial_state=s1, final_state=s2, automatic=True)
@@ -24,16 +26,19 @@ class TransitionTest(TestCase):
         )
         p11 = FunctionParameter.objects.create(function=f1, name="attribute_name", value="is_superuser")
         p12 = FunctionParameter.objects.create(function=f1, name="attribute_value", value="True")
-        user = User.objects.create(username="admin", is_superuser=True)
-        wf.add_object(user.id)
+        User.objects.create(username="admin", is_superuser=True)
 
     def test_transition_availability(self):
         user = User.objects.get(username="admin")
+        #print(user)
+        wf = workflow.get_workflow("Test_Workflow")
+        wf.add_object(user.id, async=False)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
         self.assertTrue(len(manual) == 1)
+        self.assertEqual(manual[0].initial_state.name, "state 2")
         self.assertEqual(manual[0].final_state.name, "state 3")
-        s = State.objects.get(name="state 1")
-        auto = s.available_transitions(user, user.id, automatic=True)
-        #print(user.is_superuser)
-        self.assertTrue(len(auto) == 1)
-        self.assertEqual(auto[0].final_state.name, "state 2")
+        s = workflow.get_object_state("Test_Workflow", user.id)
+        self.assertEqual(s.name, "state 2")
+        manual[0].execute(user, user.id)
+        s = workflow.get_object_state("Test_Workflow", user.id)
+        self.assertEqual(s.name, "state 3")

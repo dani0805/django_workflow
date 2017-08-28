@@ -16,8 +16,9 @@ class Workflow(models.Model):
     def __unicode__(self):
         return self.name
 
-    def add_object(self, object_id):
+    def add_object(self, object_id, async=True):
         CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
+        return _execute_atomatic_transitions(self.initial_state, object_id, async=async)
 
     def object_class(self):
         return import_from_path(self.object_type)
@@ -69,8 +70,9 @@ class Transition(models.Model):
 
     def execute(self, user, object_id, async=False, automatic=False):
         if async:
-            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id), kwargs={automatic:automatic})
+            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id), kwargs={"automatic":automatic})
             thr.start()
+            return thr
         else:
             _execute_transition(self, user, object_id, automatic=automatic)
 
@@ -85,11 +87,14 @@ def _execute_transition(transition, user, object_id, automatic=False):
             thr = threading.Thread(target=c.function, args=(transition.initial_state.workflow, user, object_id), kwargs=params)
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
-        automatic_transitions = transition.final_state.outgoing_transitions.filter(automatic=True)
-        for t in automatic_transitions:
-            if t.is_available(None, object_id, automatic=True):
-                t.execute(None, object_id, async=True, automatic=True)
-                return
+        _execute_atomatic_transitions(transition.final_state, object_id)
+
+
+def _execute_atomatic_transitions(state, object_id, async=True):
+    automatic_transitions = state.outgoing_transitions.filter(automatic=True)
+    for t in automatic_transitions:
+        if t.is_available(None, object_id, automatic=True):
+            return t.execute(None, object_id, async=async, automatic=True)
 
 
 @transaction.atomic
@@ -100,7 +105,7 @@ def _atomic_execution(object_id, transition, user):
     objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
     objState.state = transition.final_state
     objState.save()
-    TransitionLog.objects.create(object_id=object_id, user_id=user.id, transition=transition, success=True)
+    TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition, success=True)
 
 
 class Condition(models.Model):
@@ -202,8 +207,8 @@ class CurrentObjectState(models.Model):
 
 
 class TransitionLog(models.Model):
-    user_id = models.CharField(max_length=200, verbose_name=ugettext_lazy("User Id"))
-    object_id = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object Id"))
+    user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
+    object_id = models.IntegerField(verbose_name=ugettext_lazy("Object Id"))
     transition = models.ForeignKey(Transition, verbose_name=ugettext_lazy("Transition"))
     completed_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Time of Completion"))
     success = models.BooleanField(verbose_name=ugettext_lazy("Success"))
