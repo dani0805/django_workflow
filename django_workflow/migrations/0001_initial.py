@@ -63,7 +63,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('name', models.CharField(max_length=100, verbose_name='Name')),
                 ('value', models.CharField(max_length=4000, verbose_name='Value')),
-                ('function', models.ForeignKey(verbose_name='Function', to='django_workflow.Function')),
+                ('function', models.ForeignKey(related_name='parameters', verbose_name='Function', to='django_workflow.Function')),
             ],
         ),
         migrations.CreateModel(
@@ -72,6 +72,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('name', models.CharField(max_length=200, verbose_name='Name')),
                 ('active', models.BooleanField(verbose_name='Active')),
+                ('initial', models.BooleanField(default=False, verbose_name='Initial')),
             ],
         ),
         migrations.CreateModel(
@@ -93,8 +94,8 @@ class Migration(migrations.Migration):
             name='TransitionLog',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('user_id', models.CharField(max_length=200, verbose_name='User Id')),
-                ('object_id', models.CharField(max_length=200, verbose_name='Object Id')),
+                ('user_id', models.IntegerField(null=True, verbose_name='User Id', blank=True)),
+                ('object_id', models.IntegerField(verbose_name='Object Id')),
                 ('completed_ts', models.DateTimeField(auto_now=True, verbose_name='Time of Completion')),
                 ('success', models.BooleanField(verbose_name='Success')),
                 ('error_code', models.CharField(blank=True, max_length=5, null=True, verbose_name='Error Code', choices=[(b'400', b'400 - Not Authorized'), (b'500', b'500 - Internal Error')])),
@@ -106,10 +107,19 @@ class Migration(migrations.Migration):
             name='Workflow',
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
-                ('name', models.CharField(max_length=200, verbose_name='Name')),
+                ('name', models.CharField(unique=True, max_length=200, verbose_name='Name')),
                 ('object_type', models.CharField(max_length=200, verbose_name='Object_Type')),
-                ('initial_state', models.OneToOneField(related_name='starts_workflow', null=True, blank=True, to='django_workflow.State', verbose_name='Initial State')),
             ],
+        ),
+        migrations.AddField(
+            model_name='transitionlog',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AddField(
+            model_name='transition',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
         ),
         migrations.AddField(
             model_name='state',
@@ -117,9 +127,24 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(verbose_name='Workflow', to='django_workflow.Workflow'),
         ),
         migrations.AddField(
+            model_name='functionparameter',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AddField(
+            model_name='function',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AddField(
             model_name='currentobjectstate',
             name='state',
             field=models.ForeignKey(verbose_name='State', to='django_workflow.State'),
+        ),
+        migrations.AddField(
+            model_name='currentobjectstate',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
         ),
         migrations.AddField(
             model_name='condition',
@@ -127,8 +152,31 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(verbose_name='Transition', blank=True, to='django_workflow.Transition', null=True),
         ),
         migrations.AddField(
+            model_name='condition',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AddField(
+            model_name='callbackparameter',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AddField(
             model_name='callback',
             name='transition',
             field=models.ForeignKey(verbose_name='Transition', to='django_workflow.Transition'),
+        ),
+        migrations.AddField(
+            model_name='callback',
+            name='workflow',
+            field=models.ForeignKey(editable=False, to='django_workflow.Workflow', verbose_name='Workflow'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='transition',
+            unique_together=set([('name', 'initial_state', 'final_state')]),
+        ),
+        migrations.AlterUniqueTogether(
+            name='state',
+            unique_together=set([('name', 'workflow')]),
         ),
     ]

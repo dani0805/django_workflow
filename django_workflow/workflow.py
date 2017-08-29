@@ -1,6 +1,7 @@
 from django.core import serializers
 
-from django_workflow.models import Workflow, State, CurrentObjectState, Transition
+from django_workflow.models import Workflow, State, CurrentObjectState, Transition, Condition, Function, \
+    FunctionParameter, Callback, CallbackParameter
 
 
 def get_workflow(name):
@@ -22,10 +23,24 @@ def get_object_state(workflow_name, object_id):
         raise ValueError("object_id {} not found in workflow {}!".format(object_id, workflow_name))
 
 
-def export_workflow(workflow_name, file):
-    data = serializers.serialize('json', Workflow.objects.all())
-    print(data)
-    data = serializers.serialize('json', State.objects.all())
-    print(data)
-    data = serializers.serialize('json', Transition.objects.all())
-    print(data)
+def export_workflow(workflow_name):
+    objects = Workflow.objects.all()
+    if workflow_name:
+        objects = Workflow.objects.filter(name=workflow_name)
+
+    data = serializers.serialize('json',
+        list(objects)
+        + list(State.objects.filter(workflow__in=objects))
+        + list(Transition.objects.filter(workflow__in=objects))
+        + list(Condition.objects.filter(workflow__in=objects))
+        + list(Function.objects.filter(workflow__in=objects))
+        + list(FunctionParameter.objects.filter(workflow__in=objects))
+        + list(Callback.objects.filter(workflow__in=objects))
+        + list(CallbackParameter.objects.filter(workflow__in=objects)),
+        indent=2, use_natural_foreign_keys=True, use_natural_primary_keys=True)
+    return data
+
+
+def import_workflow(data):
+    for deserialized_object in serializers.deserialize("json", data):
+        deserialized_object.save()

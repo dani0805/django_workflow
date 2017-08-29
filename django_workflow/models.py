@@ -15,6 +15,8 @@ class WorkflowManager(models.Manager):
 
 
 class Workflow(models.Model):
+    objects = WorkflowManager()
+
     name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
 
@@ -26,7 +28,7 @@ class Workflow(models.Model):
         return self.name
 
     def natural_key(self):
-        return self.name
+        return (self.name,)
 
     def add_object(self, object_id, async=True):
         CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
@@ -43,8 +45,10 @@ class StateManager(models.Manager):
 
 
 class State(models.Model):
-    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+    objects = StateManager()
+
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"))
+    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     active = models.BooleanField(verbose_name=ugettext_lazy("Active"))
     initial = models.BooleanField(default=False, verbose_name=ugettext_lazy("Initial"))
 
@@ -73,6 +77,9 @@ class TransitionManager(models.Manager):
 
 
 class Transition(models.Model):
+    objects = TransitionManager()
+
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     name = models.CharField(max_length=200, null=True, blank=True, verbose_name=ugettext_lazy("Name"))
     initial_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Initial State"), related_name="outgoing_transitions")
     final_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Final State"),
@@ -90,6 +97,10 @@ class Transition(models.Model):
 
     def natural_key(self):
         return (self.name, self.initial_state.workflow.name, self.initial_state.name, self.final_state.name)
+
+    def save(self, **qwargs):
+        self.workflow = self.initial_state.workflow
+        super(Transition, self).save(**qwargs)
 
     def is_available(self, user, object_id, automatic=False):
         if CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id).exists():
@@ -149,6 +160,7 @@ class Condition(models.Model):
         ("or", "Boolean OR"),
         ("not", "Boolean NOT"),
     ]
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     condition_type = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
     parent_condition = models.ForeignKey("Condition", null=True, blank=True, verbose_name=ugettext_lazy("Parent Condition"), related_name="child_conditions" )
     transition = models.ForeignKey(Transition, null=True, blank=True, verbose_name=ugettext_lazy("Transition") )
@@ -158,6 +170,13 @@ class Condition(models.Model):
             raise ValidationError("cannot specifiy both transition and parent condition")
         elif not self.transition and not self.parent_condition:
             raise ValidationError("at least one of transition and parent condition must be not null")
+
+    def save(self, **qwargs):
+        if self.transition:
+            self.workflow = self.transition.workflow
+        else:
+            self.workflow = self.parent_condition.workflow
+        super(Condition, self).save(**qwargs)
 
     def __unicode__(self):
         ancestors = []
@@ -188,6 +207,7 @@ class Condition(models.Model):
 
 
 class Function(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     function_name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Function"))
     function_module = models.CharField(max_length=400, verbose_name=ugettext_lazy("Module"))
     condition = models.ForeignKey(Condition, verbose_name=ugettext_lazy("Condition"))
@@ -195,12 +215,17 @@ class Function(models.Model):
     def __unicode__(self):
         return "{} - {}.{}".format(self.condition, self.function_module, self.function_name)
 
+    def save(self, **qwargs):
+        self.workflow = self.condition.workflow
+        super(Function, self).save(**qwargs)
+
     @property
     def function(self):
         return import_from(self.function_module, self.function_name)
 
 
 class FunctionParameter(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     function = models.ForeignKey(Function, verbose_name=ugettext_lazy("Function"), related_name="parameters")
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
@@ -208,14 +233,22 @@ class FunctionParameter(models.Model):
     def __unicode__(self):
         return "{} ({}: {})".format(self.function, self.name, self.value)
 
+    def save(self, **qwargs):
+        self.workflow = self.function.workflow
+        super(FunctionParameter, self).save(**qwargs)
 
 
 class Callback(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     function_name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     function_module = models.CharField(max_length=400, verbose_name=ugettext_lazy("Module"))
     transition = models.ForeignKey(Transition, verbose_name=ugettext_lazy("Transition"))
     order = models.IntegerField(verbose_name=ugettext_lazy("Order"))
     execute_async = models.BooleanField(verbose_name=ugettext_lazy("Execute Asynchronously"), default=False)
+
+    def save(self, **qwargs):
+        self.workflow = self.transition.workflow
+        super(Callback, self).save(**qwargs)
 
     @property
     def function(self):
@@ -226,12 +259,18 @@ class Callback(models.Model):
 
 
 class CallbackParameter(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     callback = models.ForeignKey(Callback, verbose_name=ugettext_lazy("Callback"))
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 
+    def save(self, **qwargs):
+        self.workflow = self.callback.workflow
+        super(CallbackParameter, self).save(**qwargs)
+
 
 class CurrentObjectState(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     object_id = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object Id"))
     state = models.ForeignKey(State, verbose_name=ugettext_lazy("State"))
     updated_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Last Updated"))
@@ -239,8 +278,12 @@ class CurrentObjectState(models.Model):
     def __unicode__(self):
         return "{} in state {} since {}".format(self.object_id, self.state, self.updated_ts)
 
+    def save(self, **qwargs):
+        self.workflow = self.state.workflow
+        super(CurrentObjectState, self).save(**qwargs)
 
 class TransitionLog(models.Model):
+    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
     object_id = models.IntegerField(verbose_name=ugettext_lazy("Object Id"))
     transition = models.ForeignKey(Transition, verbose_name=ugettext_lazy("Transition"))
@@ -253,3 +296,7 @@ class TransitionLog(models.Model):
     error_code = models.CharField(max_length=5, null=True, blank=True, choices=ERROR_CODES, verbose_name=ugettext_lazy("Error Code"))
     error_message = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Error Message"))
 
+
+    def save(self, **qwargs):
+        self.workflow = self.transition.workflow
+        super(TransitionLog, self).save(**qwargs)

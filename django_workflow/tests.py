@@ -6,7 +6,7 @@ from django_workflow import workflow
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter
 
 
-class TransitionTest(TestCase):
+class WorkflowTest(TestCase):
 
     def setUp(self):
         wf = Workflow.objects.create(name="Test_Workflow", object_type="django.contrib.auth.models.User")
@@ -42,4 +42,14 @@ class TransitionTest(TestCase):
         self.assertEqual(s.name, "state 3")
 
     def test_export(self):
-        workflow.export_workflow("Test_Workflow", None)
+        data = workflow.export_workflow("Test_Workflow")
+        FunctionParameter.objects.all().delete()
+        Function.objects.all().delete()
+        Condition.objects.all().delete()
+        Transition.objects.all().delete()
+        State.objects.all().delete()
+        Workflow.objects.all().delete()
+        workflow.import_workflow(data)
+        self.assertTrue(len(FunctionParameter.objects.all()) == 2)
+        self.assertTrue(len(Transition.objects.all()) == 3)
+        self.assertTrue(len(FunctionParameter.objects.filter(workflow__name="Test_Workflow")) == 2)
