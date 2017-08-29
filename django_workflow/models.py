@@ -160,7 +160,7 @@ def _execute_atomatic_transitions(state, object_id, async=True):
 @transaction.atomic
 def _atomic_execution(object_id, transition, user):
     for c in transition.callback_set.filter(execute_async=False):
-        params = {p.name: p.value for p in c.callback_parameter_set.all()}
+        params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.initial_state.workflow, user, object_id, **params)
     objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
     objState.state = transition.final_state
@@ -275,7 +275,7 @@ class Callback(models.Model):
 
 class CallbackParameter(models.Model):
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    callback = models.ForeignKey(Callback, verbose_name=ugettext_lazy("Callback"))
+    callback = models.ForeignKey(Callback, verbose_name=ugettext_lazy("Callback"), related_name="parameters")
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 

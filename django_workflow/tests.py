@@ -3,23 +3,33 @@ from django.test import TestCase
 
 from django.contrib.auth.models import User
 from django_workflow import workflow
-from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter
+from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
+    CallbackParameter
 
+
+def _print(workflow, user, object_id, text=""):
+    print(text)
 
 class WorkflowTest(TestCase):
 
     def setUp(self):
+        # create the main workflow object
         wf = Workflow.objects.create(name="Test_Workflow", object_type="django.contrib.auth.models.User")
+        # create 3 states
         s1 = State.objects.create(name="state 1", workflow=wf, active=True, initial=True)
         s2 = State.objects.create(name="state 2", workflow=wf, active=True)
-        s3 = State.objects.create(name="state 3", workflow=wf, active=True)
+        #the final state is defined as inactive so that its skipped when scanning for automatic transitions
+        s3 = State.objects.create(name="state 3", workflow=wf, active=False)
+        # create the transitions, we have 2 automatic transitions from state 1 to state 2,
+        # the first is going to be executed despite t4 having a better priority because
+        # t1 has a lower automatic_delay
         t1 = Transition.objects.create(name="auto_fast", initial_state=s1, final_state=s2, automatic=True, automatic_delay=1.0/24.0/3600.0, priority=2)
         t4 = Transition.objects.create(name="auto_slow", initial_state=s1, final_state=s3, automatic=True,
             automatic_delay=1.0 / 24.0, priority=1)
-
         t2 = Transition.objects.create(initial_state=s1, final_state=s3, automatic=False)
         t3 = Transition.objects.create(initial_state=s2, final_state=s3, automatic=False)
-        c1 = Condition.objects.create(condition_type="function", transition=t1)
+        # we set t3 to be executed only by superusers this can be done with a object_attribute_value conditon
+        c1 = Condition.objects.create(condition_type="function", transition=t3)
         f1 = Function.objects.create(
             function_name="object_attribute_value",
             function_module="django_workflow.conditions",
@@ -27,6 +37,9 @@ class WorkflowTest(TestCase):
         )
         p11 = FunctionParameter.objects.create(function=f1, name="attribute_name", value="is_superuser")
         p12 = FunctionParameter.objects.create(function=f1, name="attribute_value", value="True")
+        # we want to print out if transition 1 was executed, this can be done with a callback
+        cb1 = Callback.objects.create(transition=t1, function_name="_print", function_module="django_workflow.tests", order=1)
+        cp11 = CallbackParameter.objects.create(callback=cb1, name="text", value="Transition 1 Executed")
         User.objects.create(username="admin", is_superuser=True)
 
     def test_transition_availability(self):
