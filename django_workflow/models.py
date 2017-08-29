@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.utils import timezone
 from django.utils.translation import ugettext_lazy
 
 # import a definition from a module at runtime
@@ -106,17 +107,18 @@ class Transition(models.Model):
     def is_available(self, user, object_id, automatic=False):
         obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
         if obj.exists():
+            obj = obj.first()
             conditions = self.condition_set.all()
             if len(conditions) == 0:
                 if automatic:
-                    return self.automatic and self.automatic_delay is None or datetime.now()- obj.updated_ts > timedelta(days=self.automatic_delay)
+                    return self.automatic and self.automatic_delay is None or timezone.now()- obj.updated_ts > timedelta(days=self.automatic_delay)
                 else:
                     return not self.automatic
             else:
                 root_condition = conditions.first()
                 if root_condition.check_condition(object_id, user ):
                     if automatic:
-                        return self.automatic and self.automatic_delay is None or datetime.now() - obj.updated_ts > timedelta(days=self.automatic_delay)
+                        return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(days=self.automatic_delay)
                     else:
                         return not self.automatic
                 else:

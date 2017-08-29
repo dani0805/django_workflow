@@ -1,4 +1,4 @@
-from django.db import transaction
+import time
 from django.test import TestCase
 
 from django.contrib.auth.models import User
@@ -13,7 +13,10 @@ class WorkflowTest(TestCase):
         s1 = State.objects.create(name="state 1", workflow=wf, active=True, initial=True)
         s2 = State.objects.create(name="state 2", workflow=wf, active=True)
         s3 = State.objects.create(name="state 3", workflow=wf, active=True)
-        t1 = Transition.objects.create(initial_state=s1, final_state=s2, automatic=True)
+        t1 = Transition.objects.create(name="auto_fast", initial_state=s1, final_state=s2, automatic=True, automatic_delay=1.0/24.0/3600.0, priority=2)
+        t4 = Transition.objects.create(name="auto_slow", initial_state=s1, final_state=s3, automatic=True,
+            automatic_delay=1.0 / 24.0, priority=1)
+
         t2 = Transition.objects.create(initial_state=s1, final_state=s3, automatic=False)
         t3 = Transition.objects.create(initial_state=s2, final_state=s3, automatic=False)
         c1 = Condition.objects.create(condition_type="function", transition=t1)
@@ -33,13 +36,11 @@ class WorkflowTest(TestCase):
         wf.add_object(user.id, async=False)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
         self.assertTrue(len(manual) == 1)
-        self.assertEqual(manual[0].initial_state.name, "state 2")
+        self.assertEqual(manual[0].initial_state.name, "state 1")
         self.assertEqual(manual[0].final_state.name, "state 3")
         s = workflow.get_object_state("Test_Workflow", user.id)
-        self.assertEqual(s.name, "state 2")
-        manual[0].execute(user, user.id)
-        s = workflow.get_object_state("Test_Workflow", user.id)
-        self.assertEqual(s.name, "state 3")
+        self.assertEqual(s.name, "state 1")
+
 
     def test_export(self):
         data = workflow.export_workflow("Test_Workflow")
@@ -51,5 +52,20 @@ class WorkflowTest(TestCase):
         Workflow.objects.all().delete()
         workflow.import_workflow(data)
         self.assertTrue(len(FunctionParameter.objects.all()) == 2)
-        self.assertTrue(len(Transition.objects.all()) == 3)
+        self.assertTrue(len(Transition.objects.all()) == 4)
         self.assertTrue(len(FunctionParameter.objects.filter(workflow__name="Test_Workflow")) == 2)
+
+    def test_automatic(self):
+        user = User.objects.get(username="admin")
+        # print(user)
+        wf = workflow.get_workflow("Test_Workflow")
+        wf.add_object(user.id, async=False)
+        time.sleep(2)
+        workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
+        s = workflow.get_object_state("Test_Workflow", user.id)
+        self.assertEqual(s.name, "state 2")
+        manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
+        manual[0].execute(user, user.id)
+        s = workflow.get_object_state("Test_Workflow", user.id)
+        self.assertEqual(s.name, "state 3")
+
