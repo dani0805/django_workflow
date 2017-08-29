@@ -1,7 +1,7 @@
 from django.core import serializers
 
 from django_workflow.models import Workflow, State, CurrentObjectState, Transition, Condition, Function, \
-    FunctionParameter, Callback, CallbackParameter
+    FunctionParameter, Callback, CallbackParameter, _execute_atomatic_transitions
 
 
 def get_workflow(name):
@@ -44,3 +44,16 @@ def export_workflow(workflow_name):
 def import_workflow(data):
     for deserialized_object in serializers.deserialize("json", data):
         deserialized_object.save()
+
+
+def execute_automatic_transitions(workflow_name=None, object_id=None):
+    objects = CurrentObjectState.objects.filter(state__active=True)
+    if workflow_name:
+        objects = objects.filter(workflow__name=workflow_name)
+        if object_id:
+            objects = objects.filter(object_id=object_id)
+    if object_id and not workflow_name:
+        raise ValueError("object_id cannot be passed without workflow_name")
+    for o in objects:
+        _execute_atomatic_transitions(o.state, o.object_id, async=False)
+

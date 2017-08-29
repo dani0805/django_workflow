@@ -1,4 +1,5 @@
 import threading
+from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -103,13 +104,23 @@ class Transition(models.Model):
         super(Transition, self).save(**qwargs)
 
     def is_available(self, user, object_id, automatic=False):
-        if CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id).exists():
+        obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
+        if obj.exists():
             conditions = self.condition_set.all()
             if len(conditions) == 0:
-                return self.automatic == automatic
+                if automatic:
+                    return self.automatic and self.automatic_delay is None or datetime.now()- obj.updated_ts > timedelta(days=self.automatic_delay)
+                else:
+                    return not self.automatic
             else:
                 root_condition = conditions.first()
-                return root_condition.check_condition(object_id, user ) and self.automatic == automatic
+                if root_condition.check_condition(object_id, user ):
+                    if automatic:
+                        return self.automatic and self.automatic_delay is None or datetime.now() - obj.updated_ts > timedelta(days=self.automatic_delay)
+                    else:
+                        return not self.automatic
+                else:
+                    return False
         else:
             return False
 
@@ -136,6 +147,8 @@ def _execute_transition(transition, user, object_id, automatic=False):
 
 
 def _execute_atomatic_transitions(state, object_id, async=True):
+    if not state.active:
+        return
     automatic_transitions = state.outgoing_transitions.filter(automatic=True)
     for t in automatic_transitions:
         if t.is_available(None, object_id, automatic=True):
