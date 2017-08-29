@@ -55,3 +55,7 @@ Temporary Items
 
 /db.sqlite3
 
+/dist/
+/django_wf.egg-info/
+/django_workflow.egg-info/
+/build/
