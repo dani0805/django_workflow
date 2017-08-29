@@ -73,7 +73,7 @@ Once the workflow is defined one can add objects to the workflow
 
 ::
 
-    obj = MyModelObject
+    obj = MyModelObject.objects.get(name="MyObjectName")
     wf = workflow.get_workflow("Test_Workflow")
     wf.add_object(obj.id)
 
