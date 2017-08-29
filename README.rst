@@ -20,7 +20,7 @@ A workflow is defined by the following objects:
 :Condition: objects which limit the execution of transitions based on the properties of the object
     which is undergoing the process, of the user or on generic queries. Conditions are hierarchical and
     can be combined using special boolean conditions
-:Function: For every condition ``C`` of type function there must be a function which has value ``C``for the condition.
+:Function: For every condition ``C`` of type function there must be a function which has value ``C`` for the condition.
     The function specifies the python function which will be called to check if the condition is fulfilled.
 :FunctionParameter: Each function parameter is passed as kwarg to its ``function``
 :Callback: A callback defines a python function which should be called when a transition occurs,
