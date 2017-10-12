@@ -16,7 +16,7 @@ def get_object_state(workflow_name, object_id):
     wf = get_workflow(workflow_name)
     if not wf:
         raise ValueError("wokflow {} not found!".format(workflow_name))
-    state = CurrentObjectState.objects.get(id=object_id, state__workflow__id=wf.id).state
+    state = CurrentObjectState.objects.get(object_id=object_id, state__workflow__id=wf.id).state
     if state:
         return state
     else:
