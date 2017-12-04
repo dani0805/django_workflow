@@ -1,5 +1,5 @@
 import threading
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -11,7 +11,6 @@ from django_workflow.utils import import_from, import_from_path
 
 
 class WorkflowManager(models.Manager):
-
     def get_by_natural_key(self, name):
         return self.get(name=name)
 
@@ -26,8 +25,19 @@ class Workflow(models.Model):
     def initial_state(self):
         return State.objects.get(workflow=self, initial=True)
 
+    @property
+    def initial_transition(self):
+        return Transition.objects.get(workflow=self, initial_state=None, final_state=self.initial_state)
+
     def __unicode__(self):
         return self.name
+
+    def is_initial_transition_available(self, user, object_id):
+        try:
+            init_transition = self.initial_transition
+            return init_transition.is_available(user, object_id, automatic=False)
+        except:
+            raise ValidationError('initial transition not available')
 
     def natural_key(self):
         return (self.name,)
@@ -41,7 +51,6 @@ class Workflow(models.Model):
 
 
 class StateManager(models.Manager):
-
     def get_by_natural_key(self, name, workflow):
         return self.get(name=name, workflow__name=workflow)
 
@@ -68,7 +77,6 @@ class State(models.Model):
 
 
 class TransitionManager(models.Manager):
-
     def get_by_natural_key(self, name, workflow, initial_state, final_state):
         return self.get(
             name=name,
@@ -83,9 +91,10 @@ class Transition(models.Model):
 
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     name = models.CharField(max_length=200, null=True, blank=True, verbose_name=ugettext_lazy("Name"))
-    initial_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Initial State"), related_name="outgoing_transitions")
+    initial_state = models.ForeignKey(State, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
+                                      related_name="outgoing_transitions")
     final_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Final State"),
-        related_name="incoming_transitions")
+                                    related_name="incoming_transitions")
     priority = models.IntegerField(null=True, blank=True, verbose_name=ugettext_lazy("Priority"))
     automatic = models.BooleanField(verbose_name=ugettext_lazy("Automatic"))
     automatic_delay = models.FloatField(null=True, blank=True, verbose_name=ugettext_lazy("Automatic Delay in Days"))
@@ -95,7 +104,8 @@ class Transition(models.Model):
         unique_together = (('name', 'initial_state', 'final_state'),)
 
     def __unicode__(self):
-        return "{}{}: {} to {}".format(self.initial_state.workflow.name, "("+self.name+")" if self.name else "", self.initial_state.name, self.final_state.name)
+        return "{}{}: {} to {}".format(self.initial_state.workflow.name, "(" + self.name + ")" if self.name else "",
+                                       self.initial_state.name, self.final_state.name)
 
     def natural_key(self):
         return (self.name, self.initial_state.workflow.name, self.initial_state.name, self.final_state.name)
@@ -111,14 +121,16 @@ class Transition(models.Model):
             conditions = self.condition_set.all()
             if len(conditions) == 0:
                 if automatic:
-                    return self.automatic and self.automatic_delay is None or timezone.now()- obj.updated_ts > timedelta(days=self.automatic_delay)
+                    return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
+                        days=self.automatic_delay)
                 else:
                     return not self.automatic
             else:
                 root_condition = conditions.first()
-                if root_condition.check_condition(object_id, user ):
+                if root_condition.check_condition(object_id, user):
                     if automatic:
-                        return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(days=self.automatic_delay)
+                        return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
+                            days=self.automatic_delay)
                     else:
                         return not self.automatic
                 else:
@@ -128,7 +140,8 @@ class Transition(models.Model):
 
     def execute(self, user, object_id, async=False, automatic=False):
         if async:
-            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id), kwargs={"automatic":automatic})
+            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id),
+                                   kwargs={"automatic": automatic})
             thr.start()
             return thr
         else:
@@ -142,7 +155,8 @@ def _execute_transition(transition, user, object_id, automatic=False):
         # now trigger all async callbacks
         for c in transition.callback_set.filter(execute_async=True):
             params = {p.name: p.value for p in c.callback_parameter_set.all()}
-            thr = threading.Thread(target=c.function, args=(transition.initial_state.workflow, user, object_id), kwargs=params)
+            thr = threading.Thread(target=c.function, args=(transition.initial_state.workflow, user, object_id),
+                                   kwargs=params)
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
         _execute_atomatic_transitions(transition.final_state, object_id)
@@ -165,7 +179,8 @@ def _atomic_execution(object_id, transition, user):
     objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
     objState.state = transition.final_state
     objState.save()
-    TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition, success=True)
+    TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
+                                 success=True)
 
 
 class Condition(models.Model):
@@ -177,8 +192,10 @@ class Condition(models.Model):
     ]
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     condition_type = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
-    parent_condition = models.ForeignKey("Condition", null=True, blank=True, verbose_name=ugettext_lazy("Parent Condition"), related_name="child_conditions" )
-    transition = models.ForeignKey(Transition, null=True, blank=True, verbose_name=ugettext_lazy("Transition") )
+    parent_condition = models.ForeignKey("Condition", null=True, blank=True,
+                                         verbose_name=ugettext_lazy("Parent Condition"),
+                                         related_name="child_conditions")
+    transition = models.ForeignKey(Transition, null=True, blank=True, verbose_name=ugettext_lazy("Transition"))
 
     def clean(self):
         if self.transition and self.parent_condition:
@@ -297,6 +314,7 @@ class CurrentObjectState(models.Model):
         self.workflow = self.state.workflow
         super(CurrentObjectState, self).save(**qwargs)
 
+
 class TransitionLog(models.Model):
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
     user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
@@ -308,9 +326,10 @@ class TransitionLog(models.Model):
         ("400", "400 - Not Authorized"),
         ("500", "500 - Internal Error"),
     ]
-    error_code = models.CharField(max_length=5, null=True, blank=True, choices=ERROR_CODES, verbose_name=ugettext_lazy("Error Code"))
-    error_message = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Error Message"))
-
+    error_code = models.CharField(max_length=5, null=True, blank=True, choices=ERROR_CODES,
+                                  verbose_name=ugettext_lazy("Error Code"))
+    error_message = models.CharField(max_length=4000, null=True, blank=True,
+                                     verbose_name=ugettext_lazy("Error Message"))
 
     def save(self, **qwargs):
         self.workflow = self.transition.workflow
