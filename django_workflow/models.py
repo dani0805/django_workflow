@@ -226,7 +226,7 @@ class Condition(models.Model):
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.transition.initial_state.workflow
-            return call(wf, object_id, user, **params)
+            return call(wf, user, object_id, **params)
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(object_id, user)
