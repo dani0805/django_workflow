@@ -111,7 +111,10 @@ class Transition(models.Model):
         return (self.name, self.initial_state.workflow.name, self.initial_state.name, self.final_state.name)
 
     def save(self, **qwargs):
-        self.workflow = self.initial_state.workflow
+        if self.initial_state:
+            self.workflow = self.initial_state.workflow
+        else:
+            self.workflow = self.final_state.workflow
         super(Transition, self).save(**qwargs)
 
     def is_available(self, user, object_id, automatic=False):
