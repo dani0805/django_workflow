@@ -32,12 +32,29 @@ class Workflow(models.Model):
     def __unicode__(self):
         return self.name
 
-    def is_initial_transition_available(self, user, object_id):
-        try:
-            init_transition = self.initial_transition
-            return init_transition.is_available(user, object_id, automatic=False)
-        except:
-            raise ValidationError('initial transition not available')
+    def is_initial_transition_available(self, user, object_id, automatic=False):
+        obj = CurrentObjectState.objects.filter(object_id=object_id)
+        if obj.exists():
+            obj = obj.first()
+            conditions = self.condition_set.all()
+            if len(conditions) == 0:
+                if automatic:
+                    return self.initial_transition.automatic and self.initial_transition.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
+                        days=self.initial_transition.automatic_delay)
+                else:
+                    return not self.initial_transition.automatic
+            else:
+                root_condition = conditions.first()
+                if root_condition.check_condition(object_id, user):
+                    if automatic:
+                        return self.initial_transition.automatic and self.initial_transition.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
+                            days=self.initial_transition.automatic_delay)
+                    else:
+                        return not self.initial_transition.automatic
+                else:
+                    return False
+        else:
+            return False
 
     def natural_key(self):
         return (self.name,)
@@ -228,7 +245,7 @@ class Condition(models.Model):
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
-            wf = self.transition.initial_state.workflow
+            wf = self.transition.workflow
             return call(wf, user, object_id, **params)
             # Not recursive
         elif self.condition_type == "not":
