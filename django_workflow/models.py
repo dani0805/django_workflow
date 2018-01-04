@@ -1,4 +1,5 @@
 import threading
+import json
 from datetime import timedelta
 
 from django.core.exceptions import ValidationError
@@ -20,6 +21,11 @@ class Workflow(models.Model):
 
     name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
+    initial_prefetch = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Object_Type"))
+
+    @property
+    def initial_prefetch_dict(self):
+        return json.loads(self.initial_prefetch) if self.initial_prefetch else None
 
     @property
     def initial_state(self):
@@ -29,26 +35,27 @@ class Workflow(models.Model):
     def initial_transition(self):
         return Transition.objects.get(workflow=self, initial_state=None, final_state=self.initial_state)
 
+    def prefetch_initial_objects(self):
+        print("fetching initial candidates")
+        return self.object_class().objects.filter(**self.initial_prefetch_dict) if self.initial_prefetch else None
+
     def __unicode__(self):
         return self.name
 
     def is_initial_transition_available(self, user, object_id, automatic=False):
         obj = CurrentObjectState.objects.filter(object_id=object_id)
-        if obj.exists():
-            obj = obj.first()
-            conditions = self.condition_set.all()
+        if not obj.exists():
+            conditions = self.initial_transition.condition_set.all()
             if len(conditions) == 0:
                 if automatic:
-                    return self.initial_transition.automatic and self.initial_transition.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
-                        days=self.initial_transition.automatic_delay)
+                    return self.initial_transition.automatic
                 else:
                     return not self.initial_transition.automatic
             else:
                 root_condition = conditions.first()
                 if root_condition.check_condition(object_id, user):
                     if automatic:
-                        return self.initial_transition.automatic and self.initial_transition.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
-                            days=self.initial_transition.automatic_delay)
+                        return self.initial_transition.automatic
                     else:
                         return not self.initial_transition.automatic
                 else:
@@ -94,11 +101,10 @@ class State(models.Model):
 
 
 class TransitionManager(models.Manager):
-    def get_by_natural_key(self, name, workflow, initial_state, final_state):
+    def get_by_natural_key(self, name, workflow, final_state):
         return self.get(
             name=name,
-            initial_state__workflow__name=workflow,
-            initial_state__name=initial_state,
+            final_state__workflow__name=workflow,
             final_state__name=final_state
         )
 
@@ -118,14 +124,18 @@ class Transition(models.Model):
 
     class Meta:
         ordering = ["priority"]
-        unique_together = (('name', 'initial_state', 'final_state'),)
+        unique_together = (('name', 'final_state'),)
+
+    @property
+    def is_initial(self):
+        return self.initial_state is None
 
     def __unicode__(self):
-        return "{}{}: {} to {}".format(self.initial_state.workflow.name, "(" + self.name + ")" if self.name else "",
-                                       self.initial_state.name, self.final_state.name)
+        return "{}{}: {} to {}".format(self.final_state.workflow.name, "(" + self.name + ")" if self.name else "",
+                                       self.initial_state.name if self.initial_state else "START", self.final_state.name)
 
     def natural_key(self):
-        return (self.name, self.initial_state.workflow.name, self.initial_state.name, self.final_state.name)
+        return (self.name, self.final_state.workflow.name, self.final_state.name)
 
     def save(self, **qwargs):
         if self.initial_state:
@@ -135,6 +145,8 @@ class Transition(models.Model):
         super(Transition, self).save(**qwargs)
 
     def is_available(self, user, object_id, automatic=False):
+        if self.is_initial:
+            return self.workflow.is_initial_transition_available(user, object_id, automatic=automatic)
         obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
         if obj.exists():
             obj = obj.first()
@@ -196,9 +208,12 @@ def _atomic_execution(object_id, transition, user):
     for c in transition.callback_set.filter(execute_async=False):
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.initial_state.workflow, user, object_id, **params)
-    objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
-    objState.state = transition.final_state
-    objState.save()
+    if transition.initial_state is not None:
+        objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
+        objState.state = transition.final_state
+        objState.save()
+    else:
+        CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
                                  success=True)
 
@@ -246,7 +261,7 @@ class Condition(models.Model):
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.transition.workflow
-            return call(wf, user, object_id, **params)
+            return call(wf, object_id, user, **params)
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(object_id, user)

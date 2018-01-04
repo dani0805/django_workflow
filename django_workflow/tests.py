@@ -14,7 +14,15 @@ class WorkflowTest(TestCase):
 
     def setUp(self):
         # create the main workflow object
-        wf = Workflow.objects.create(name="Test_Workflow", object_type="django.contrib.auth.models.User")
+        wf = Workflow.objects.create(
+            name="Test_Workflow",
+            object_type="django.contrib.auth.models.User",
+            initial_prefetch="""
+                             {
+                                "username":"admin"
+                             }
+                             """
+        )
         # create 3 states
         s1 = State.objects.create(name="state 1", workflow=wf, active=True, initial=True)
         s2 = State.objects.create(name="state 2", workflow=wf, active=True)
@@ -23,6 +31,8 @@ class WorkflowTest(TestCase):
         # create the transitions, we have 2 automatic transitions from state 1 to state 2,
         # the first is going to be executed despite t4 having a better priority because
         # t1 has a lower automatic_delay
+        t0 = Transition.objects.create(name="auto_initial", final_state=s1, automatic=True)
+
         t1 = Transition.objects.create(name="auto_fast", initial_state=s1, final_state=s2, automatic=True, automatic_delay=1.0/24.0/3600.0, priority=2)
         t4 = Transition.objects.create(name="auto_slow", initial_state=s1, final_state=s3, automatic=True,
             automatic_delay=1.0 / 24.0, priority=1)
@@ -37,16 +47,27 @@ class WorkflowTest(TestCase):
         )
         p11 = FunctionParameter.objects.create(function=f1, name="attribute_name", value="is_superuser")
         p12 = FunctionParameter.objects.create(function=f1, name="attribute_value", value="True")
+
+        c2 = Condition.objects.create(condition_type="function", transition=t0)
+        f2 = Function.objects.create(
+            function_name="object_attribute_value",
+            function_module="django_workflow.conditions",
+            condition=c2
+        )
+        p21 = FunctionParameter.objects.create(function=f2, name="attribute_name", value="username")
+        p22 = FunctionParameter.objects.create(function=f2, name="attribute_value", value="admin")
+
         # we want to print out if transition 1 was executed, this can be done with a callback
         cb1 = Callback.objects.create(transition=t1, function_name="_print", function_module="django_workflow.tests", order=1)
         cp11 = CallbackParameter.objects.create(callback=cb1, name="text", value="Transition 1 Executed")
-        User.objects.create(username="admin", is_superuser=True)
+        User.objects.create(username="admin", is_superuser=True, id=1)
 
     def test_transition_availability(self):
         user = User.objects.get(username="admin")
         #print(user)
-        wf = workflow.get_workflow("Test_Workflow")
-        wf.add_object(user.id, async=False)
+        #wf = workflow.get_workflow("Test_Workflow")
+        workflow.execute_automatic_transitions()
+        #wf.add_object(user.id, async=False)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
         self.assertTrue(len(manual) == 1)
         self.assertEqual(manual[0].initial_state.name, "state 1")
@@ -71,8 +92,9 @@ class WorkflowTest(TestCase):
     def test_automatic(self):
         user = User.objects.get(username="admin")
         # print(user)
-        wf = workflow.get_workflow("Test_Workflow")
-        wf.add_object(user.id, async=False)
+        #wf = workflow.get_workflow("Test_Workflow")
+        #wf.add_object(user.id, async=False)
+        workflow.execute_automatic_transitions()
         time.sleep(2)
         workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
         s = workflow.get_object_state("Test_Workflow", user.id)

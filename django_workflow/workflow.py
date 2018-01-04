@@ -51,6 +51,16 @@ def import_workflow(data):
 
 
 def execute_automatic_transitions(workflow_name=None, object_id=None):
+    #exectute initials
+    wfs = Workflow.objects.all()
+    if workflow_name:
+        wfs = wfs.filter(name=workflow_name)
+    for wf in wfs:
+        objs = wf.prefetch_initial_objects()
+        for obj in objs:
+            if wf.is_initial_transition_available(None, obj.id, automatic=True):
+                wf.initial_transition.execute(None, obj.id, automatic=True)
+    #execute all other automatic trasitions
     objects = CurrentObjectState.objects.filter(state__active=True)
     if workflow_name:
         objects = objects.filter(workflow__name=workflow_name)
@@ -60,3 +70,5 @@ def execute_automatic_transitions(workflow_name=None, object_id=None):
         raise ValueError("object_id cannot be passed without workflow_name")
     for o in objects:
         _execute_atomatic_transitions(o.state, o.object_id, async=False)
+
+
