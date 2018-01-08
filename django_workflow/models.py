@@ -53,7 +53,7 @@ class Workflow(models.Model):
                     return not self.initial_transition.automatic
             else:
                 root_condition = conditions.first()
-                if root_condition.check_condition(object_id, user):
+                if root_condition.check_condition(user, object_id):
                     if automatic:
                         return self.initial_transition.automatic
                     else:
@@ -160,7 +160,7 @@ class Transition(models.Model):
                     return not self.automatic
             else:
                 root_condition = conditions.first()
-                if root_condition.check_condition(object_id, user):
+                if root_condition.check_condition(user, object_id):
                     if automatic:
                         return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(
                             days=self.automatic_delay)
@@ -256,22 +256,22 @@ class Condition(models.Model):
             p = p.parent_condition
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
-    def check_condition(self, object_id, user):
+    def check_condition(self, user, object_id):
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.transition.workflow
-            return call(wf, object_id, user, **params)
+            return call(wf, user, object_id, **params)
             # Not recursive
         elif self.condition_type == "not":
-            return not self.child_conditions.first().check_condition(object_id, user)
+            return not self.child_conditions.first().check_condition(user, object_id)
             # Recursive
         elif self.condition_type == "and":
-            return all([c.check_condition(object_id, user) for c in self.child_conditions.all()])
+            return all([c.check_condition(user, object_id) for c in self.child_conditions.all()])
             # Recursive
         elif self.condition_type == "or":
-            return any([c.check_condition(object_id, user) for c in self.child_conditions.all()])
+            return any([c.check_condition(user, object_id) for c in self.child_conditions.all()])
 
 
 class Function(models.Model):
