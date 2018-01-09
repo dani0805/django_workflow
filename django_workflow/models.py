@@ -113,7 +113,7 @@ class Transition(models.Model):
     objects = TransitionManager()
 
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    name = models.CharField(max_length=200, null=True, blank=True, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     description = models.CharField(max_length=400, null=True, blank=True, verbose_name=ugettext_lazy("Description"))
     initial_state = models.ForeignKey(State, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
                                       related_name="outgoing_transitions")
@@ -262,7 +262,7 @@ class Condition(models.Model):
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.transition.workflow
-            return call(wf, user, object_id, **params)
+            return call(wf, object_id, user, **params)
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(user, object_id)

@@ -36,8 +36,8 @@ class WorkflowTest(TestCase):
         t1 = Transition.objects.create(name="auto_fast", initial_state=s1, final_state=s2, automatic=True, automatic_delay=1.0/24.0/3600.0, priority=2)
         t4 = Transition.objects.create(name="auto_slow", initial_state=s1, final_state=s3, automatic=True,
             automatic_delay=1.0 / 24.0, priority=1)
-        t2 = Transition.objects.create(initial_state=s1, final_state=s3, automatic=False)
-        t3 = Transition.objects.create(initial_state=s2, final_state=s3, automatic=False)
+        t2 = Transition.objects.create(name="manual_1", initial_state=s1, final_state=s3, automatic=False)
+        t3 = Transition.objects.create(name="manual_2", initial_state=s2, final_state=s3, automatic=False)
         # we set t3 to be executed only by superusers this can be done with a object_attribute_value conditon
         c1 = Condition.objects.create(condition_type="function", transition=t3)
         f1 = Function.objects.create(
@@ -85,9 +85,9 @@ class WorkflowTest(TestCase):
         State.objects.all().delete()
         Workflow.objects.all().delete()
         workflow.import_workflow(data)
-        self.assertTrue(len(FunctionParameter.objects.all()) == 2)
-        self.assertTrue(len(Transition.objects.all()) == 4)
-        self.assertTrue(len(FunctionParameter.objects.filter(workflow__name="Test_Workflow")) == 2)
+        self.assertTrue(len(FunctionParameter.objects.all()) == 4)
+        self.assertTrue(len(Transition.objects.all()) == 5)
+        self.assertTrue(len(FunctionParameter.objects.filter(workflow__name="Test_Workflow")) == 4)
 
     def test_automatic(self):
         user = User.objects.get(username="admin")
