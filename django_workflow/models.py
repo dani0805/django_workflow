@@ -19,7 +19,7 @@ class WorkflowManager(models.Manager):
 class Workflow(models.Model):
     objects = WorkflowManager()
 
-    name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=50, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
     initial_prefetch = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Object_Type"))
 
