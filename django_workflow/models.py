@@ -113,7 +113,7 @@ class Transition(models.Model):
     objects = TransitionManager()
 
     workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=50, verbose_name=ugettext_lazy("Name"))
     description = models.CharField(max_length=400, null=True, blank=True, verbose_name=ugettext_lazy("Description"))
     initial_state = models.ForeignKey(State, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
                                       related_name="outgoing_transitions")

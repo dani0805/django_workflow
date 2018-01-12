@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='transition',
             name='name',
-            field=models.CharField(max_length=200, verbose_name='Name'),
+            field=models.CharField(max_length=50, verbose_name='Name'),
         ),
     ]
