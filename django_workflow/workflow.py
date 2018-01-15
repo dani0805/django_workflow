@@ -23,6 +23,11 @@ def get_object_state(workflow_name, object_id):
         raise ValueError("object_id {} not found in workflow {}!".format(object_id, workflow_name))
 
 
+def is_transition_available(workflow_name, transition_name, user, object_id):
+    return len(list(filter(lambda x: x.name == transition_name,
+                           get_object_state(workflow_name, object_id).available_transitions(user, object_id)))) == 1
+
+
 def is_object_in_workflow(workflow_name, object_id):
     return CurrentObjectState.objects.filter(object_id=object_id, workflow__name=workflow_name).exists()
 
@@ -51,7 +56,7 @@ def import_workflow(data):
 
 
 def execute_automatic_transitions(workflow_name=None, object_id=None):
-    #exectute initials
+    # exectute initials
     wfs = Workflow.objects.all()
     if workflow_name:
         wfs = wfs.filter(name=workflow_name)
@@ -60,7 +65,7 @@ def execute_automatic_transitions(workflow_name=None, object_id=None):
         for obj in objs:
             if wf.is_initial_transition_available(None, obj.id, automatic=True):
                 wf.initial_transition.execute(None, obj.id, automatic=True)
-    #execute all other automatic trasitions
+    # execute all other automatic trasitions
     objects = CurrentObjectState.objects.filter(state__active=True)
     if workflow_name:
         objects = objects.filter(workflow__name=workflow_name)
@@ -70,5 +75,3 @@ def execute_automatic_transitions(workflow_name=None, object_id=None):
         raise ValueError("object_id cannot be passed without workflow_name")
     for o in objects:
         _execute_atomatic_transitions(o.state, o.object_id, async=False)
-
-
