@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django_workflow import workflow
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
-    CallbackParameter
+    CallbackParameter, TransitionLog
 
 
 def _print(workflow, user, object_id, text=""):
@@ -81,6 +81,9 @@ class WorkflowTest(TestCase):
         FunctionParameter.objects.all().delete()
         Function.objects.all().delete()
         Condition.objects.all().delete()
+        CallbackParameter.objects.all().delete()
+        Callback.objects.all().delete()
+        TransitionLog.objects.all().delete()
         Transition.objects.all().delete()
         State.objects.all().delete()
         Workflow.objects.all().delete()
