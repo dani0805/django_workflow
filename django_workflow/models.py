@@ -20,7 +20,7 @@ class WorkflowManager(models.Manager):
 class Workflow(models.Model):
     objects = WorkflowManager()
 
-    name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=50, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
     initial_prefetch = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Object_Type"))
 
@@ -114,7 +114,7 @@ class Transition(models.Model):
     objects = TransitionManager()
 
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=50, verbose_name=ugettext_lazy("Name"))
     description = models.CharField(max_length=400, null=True, blank=True, verbose_name=ugettext_lazy("Description"))
     initial_state = models.ForeignKey(State, on_delete=SET_NULL, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
                                       related_name="outgoing_transitions")
