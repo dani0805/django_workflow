@@ -81,6 +81,8 @@ class WorkflowTest(TestCase):
         FunctionParameter.objects.all().delete()
         Function.objects.all().delete()
         Condition.objects.all().delete()
+        CallbackParameter.objects.all().delete()
+        Callback.objects.all().delete()
         Transition.objects.all().delete()
         State.objects.all().delete()
         Workflow.objects.all().delete()
