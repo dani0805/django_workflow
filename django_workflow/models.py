@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import SET_NULL, PROTECT
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy
 from django.db.models.deletion import PROTECT
@@ -116,7 +117,7 @@ class Transition(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     name = models.CharField(max_length=50, verbose_name=ugettext_lazy("Name"))
     description = models.CharField(max_length=400, null=True, blank=True, verbose_name=ugettext_lazy("Description"))
-    initial_state = models.ForeignKey(State, on_delete=PROTECT, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
+    initial_state = models.ForeignKey(State, on_delete=SET_NULL, null=True, blank=True, verbose_name=ugettext_lazy("Initial State"),
                                       related_name="outgoing_transitions")
     final_state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("Final State"),
                                     related_name="incoming_transitions")
@@ -229,10 +230,10 @@ class Condition(models.Model):
     ]
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     condition_type = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
-    parent_condition = models.ForeignKey("Condition", on_delete=PROTECT, null=True, blank=True,
+    parent_condition = models.ForeignKey("Condition", on_delete=SET_NULL, null=True, blank=True,
                                          verbose_name=ugettext_lazy("Parent Condition"),
                                          related_name="child_conditions")
-    transition = models.ForeignKey(Transition, on_delete=PROTECT, null=True, blank=True, verbose_name=ugettext_lazy("Transition"))
+    transition = models.ForeignKey(Transition, on_delete=SET_NULL, null=True, blank=True, verbose_name=ugettext_lazy("Transition"))
 
     def clean(self):
         if self.transition and self.parent_condition:
