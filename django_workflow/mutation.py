@@ -12,14 +12,10 @@ class CreateWorkflow(graphene.ClientIDMutation):
 
     @classmethod
     def mutate_and_get_payload(cls, root, info, **input):
-        context = info.context
-        if not context.user.is_authenticated:
-            raise PermissionDenied('User is not logged in.')
-
-        name = input
+        name = input.get('name')
         workflow = Workflow.objects.create(name=name)
 
-        return workflow
+        return CreateWorkflow(workflow=workflow)
 
 class Mutation(graphene.AbstractType):
     """
