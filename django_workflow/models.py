@@ -45,7 +45,7 @@ class Workflow(models.Model):
         return self.name
 
     def is_initial_transition_available(self, user, object_id, automatic=False):
-        obj = CurrentObjectState.objects.filter(object_id=object_id)
+        obj = CurrentObjectState.objects.filter(object_id=object_id, workflow=self)
         if not obj.exists():
             conditions = self.initial_transition.condition_set.all()
             if len(conditions) == 0:
