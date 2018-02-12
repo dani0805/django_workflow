@@ -208,6 +208,7 @@ def _execute_atomatic_transitions(state, object_id, async=True):
 
 @transaction.atomic
 def _atomic_execution(object_id, transition, user):
+    # we first change status for consistency, exceptions in callbacks could break the process
     if transition.initial_state is not None:
         objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
         objState.state = transition.final_state
