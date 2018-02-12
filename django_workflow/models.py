@@ -208,15 +208,15 @@ def _execute_atomatic_transitions(state, object_id, async=True):
 
 @transaction.atomic
 def _atomic_execution(object_id, transition, user):
-    for c in transition.callback_set.filter(execute_async=False):
-        params = {p.name: p.value for p in c.parameters.all()}
-        c.function(transition.final_state.workflow, user, object_id, **params)
     if transition.initial_state is not None:
         objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
         objState.state = transition.final_state
         objState.save()
     else:
         CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
+    for c in transition.callback_set.filter(execute_async=False):
+        params = {p.name: p.value for p in c.parameters.all()}
+        c.function(transition.final_state.workflow, user, object_id, **params)
     TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
                                  success=True)
 
