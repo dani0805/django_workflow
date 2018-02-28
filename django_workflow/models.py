@@ -87,33 +87,37 @@ class Workflow(models.Model):
     def __unicode__(self):
         return self.name
 
-    def is_initial_transition_available(self, user, object_id, automatic=False):
-        obj = CurrentObjectState.objects.filter(object_id=object_id, workflow=self)
-        if not obj.exists():
-            conditions = self.initial_transition.condition_set.all()
-            if len(conditions) == 0:
-                if automatic:
-                    return self.initial_transition.automatic
-                else:
-                    return not self.initial_transition.automatic
+    def is_initial_transition_available(self, user, object_id, object_state_id=None, automatic=False):
+        if object_state_id:
+            return not CurrentObjectState.objects.filter(id=object_state_id, workflow=self).exists()
+        else:
+            last = CurrentObjectState.objects.filter(object_id=object_id, workflow=self).order_by('-id').first()
+            if last and not last.state.is_final_state:
+                return False
             else:
-                root_condition = conditions.first()
-                if root_condition.check_condition(user, object_id):
+                conditions = self.initial_transition.condition_set.all()
+                if len(conditions) == 0:
                     if automatic:
                         return self.initial_transition.automatic
                     else:
                         return not self.initial_transition.automatic
                 else:
-                    return False
-        else:
-            return False
+                    root_condition = conditions.first()
+                    if root_condition.check_condition(user, object_id):
+                        if automatic:
+                            return self.initial_transition.automatic
+                        else:
+                            return not self.initial_transition.automatic
+                    else:
+                        return False
 
     def natural_key(self):
         return (self.name,)
 
     def add_object(self, object_id, async=True):
-        CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
-        return _execute_atomatic_transitions(self.initial_state, object_id, async=async)
+        process = CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
+        _execute_atomatic_transitions(self.initial_state, object_id, process, async=async)
+        return process
 
     def object_class(self):
         return import_from_path(self.object_type)
@@ -137,6 +141,10 @@ class State(models.Model):
 
     def __unicode__(self):
         return "{}: {}".format(self.workflow.name, self.name)
+
+    @property
+    def is_final_state(self):
+        return self.outgoing_transitions.count() == 0
 
     def natural_key(self):
         return (self.name, self.workflow.name)
@@ -190,9 +198,9 @@ class Transition(models.Model):
             self.workflow = self.final_state.workflow
         super(Transition, self).save(**qwargs)
 
-    def is_available(self, user, object_id, automatic=False):
+    def is_available(self, user, object_id, object_state_id=None, automatic=False):
         if self.is_initial:
-            return self.workflow.is_initial_transition_available(user, object_id, automatic=automatic)
+            return self.workflow.is_initial_transition_available(user, object_id, object_state_id, automatic=automatic)
         obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
         if obj.exists():
             obj = obj.first()
@@ -216,20 +224,20 @@ class Transition(models.Model):
         else:
             return False
 
-    def execute(self, user, object_id, async=False, automatic=False):
+    def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
         if async:
-            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id),
+            thr = threading.Thread(target=_execute_transition, args=(self, user, object_id, object_state_id),
                                    kwargs={"automatic": automatic})
             thr.start()
             return thr
         else:
-            _execute_transition(self, user, object_id, automatic=automatic)
+            return _execute_transition(self, user, object_id, object_state_id, automatic=automatic)
 
 
-def _execute_transition(transition, user, object_id, automatic=False):
+def _execute_transition(transition, user, object_id, object_state_id, automatic=False):
     if transition.is_available(user, object_id, automatic=automatic):
         # first execute all sync callbacks within then update the log and state tables all within a transaction
-        _atomic_execution(object_id, transition, user)
+        object_state = _atomic_execution(object_id, object_state_id, transition, user)
         # now trigger all async callbacks
         for c in transition.callback_set.filter(execute_async=True):
             params = {p.name: p.value for p in c.callback_parameter_set.all()}
@@ -237,32 +245,39 @@ def _execute_transition(transition, user, object_id, automatic=False):
                                    kwargs=params)
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
-        _execute_atomatic_transitions(transition.final_state, object_id)
+        _execute_atomatic_transitions(transition.final_state, object_id, object_state_id)
+        return object_state
 
 
-def _execute_atomatic_transitions(state, object_id, async=True):
+def _execute_atomatic_transitions(state, object_id, object_state_id, async=True):
     if not state.active:
-        return
+        return None
     automatic_transitions = state.outgoing_transitions.filter(automatic=True)
     for t in automatic_transitions:
         if t.is_available(None, object_id, automatic=True):
-            return t.execute(None, object_id, async=async, automatic=True)
+            return t.execute(None, object_id, object_state_id, async=async, automatic=True)
 
 
 @transaction.atomic
-def _atomic_execution(object_id, transition, user):
+def _atomic_execution(object_id, object_state_id, transition, user):
     # we first change status for consistency, exceptions in callbacks could break the process
     if transition.initial_state is not None:
-        objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
+        if object_state_id:
+            objState = CurrentObjectState.objects.get(id=object_state_id,
+                                                      state__workflow=transition.initial_state.workflow)
+        else:
+            objState = CurrentObjectState.objects.filter(object_id=object_id,
+                                                      state__workflow=transition.initial_state.workflow).order_by('-id').first()
         objState.state = transition.final_state
         objState.save()
     else:
-        CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
+        objState = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     for c in transition.callback_set.filter(execute_async=False):
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.final_state.workflow, user, object_id, **params)
-    TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
+    TransitionLog.objects.create(object_id=object_id, object_state=objState, user_id=user.id if user else None, transition=transition,
                                  success=True)
+    return objState
 
 
 class Condition(models.Model):
@@ -401,6 +416,7 @@ class TransitionLog(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
     object_id = models.IntegerField(verbose_name=ugettext_lazy("Object Id"))
+    object_state = models.ForeignKey(CurrentObjectState, blank=True, null=True, on_delete=PROTECT, verbose_name=ugettext_lazy("Object State"))
     transition = models.ForeignKey(Transition, on_delete=PROTECT, verbose_name=ugettext_lazy("Transition"))
     completed_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Time of Completion"))
     success = models.BooleanField(verbose_name=ugettext_lazy("Success"))
