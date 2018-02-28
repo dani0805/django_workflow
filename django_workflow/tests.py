@@ -19,7 +19,8 @@ class WorkflowTest(TestCase):
             object_type="django.contrib.auth.models.User",
             initial_prefetch="""
                              {
-                                "username":"admin"
+                                "username":"admin",
+                                "date_joined__gte":"today - 24*3600"
                              }
                              """
         )

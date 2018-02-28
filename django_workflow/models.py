@@ -1,6 +1,6 @@
 import threading
 import json
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -27,7 +27,50 @@ class Workflow(models.Model):
 
     @property
     def initial_prefetch_dict(self):
-        return json.loads(self.initial_prefetch) if self.initial_prefetch else None
+        dict = json.loads(self.initial_prefetch) if self.initial_prefetch else None
+        for k,v in dict.items():
+            if "today" in v:
+                sum_operands = [x.strip() for x in v.split("+")]
+                res = None
+                for sum_op in sum_operands:
+                    sub_operands = [x.strip() for x in sum_op.split("-")]
+                    sub_res = None
+                    for sub_op in sub_operands:
+                        mul_operands = [x.strip() for x in sub_op.split("*")]
+                        mul_res = None
+                        for mul_op in mul_operands:
+                            div_res = None
+                            div_operands = [x.strip() for x in mul_op.split("/")]
+                            for op in div_operands:
+                                if div_res is None:
+                                    div_res = datetime.now().date() if op == "today" else float(op)
+                                else:
+                                    div_res = div_res / float(op) #you cannot divide by today
+                            if mul_res is None:
+                                mul_res = div_res
+                            else:
+                                mul_res = mul_res * div_res
+                            print(mul_res)
+                        # perform multiplications and divisions in float, then convert to timedelta for the rest
+                        if isinstance(mul_res, float):
+                            mul_res = timedelta(seconds=mul_res)
+                        print(mul_res)
+                        if sub_res is None:
+                            sub_res = mul_res
+                        else:
+                            sub_res = sub_res - mul_res
+                        print(sub_res)
+                    if res is None:
+                        res = sub_res
+                    else:
+                        res = res + sub_res
+                    res = res.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    print(res)
+                dict.update({k:res})
+                print(dict)
+        return dict
+
+
 
     @property
     def initial_state(self):
