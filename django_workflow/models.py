@@ -322,7 +322,7 @@ class Condition(models.Model):
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
-            wf = self.transition.workflow
+            wf = self.workflow
             return call(wf, user, object_id, **params)
             # Not recursive
         elif self.condition_type == "not":
