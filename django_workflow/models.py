@@ -104,11 +104,13 @@ class Workflow(models.Model):
                 else:
                     root_condition = conditions.first()
                     if root_condition.check_condition(user, object_id):
+                        #print("condition true")
                         if automatic:
                             return self.initial_transition.automatic
                         else:
                             return not self.initial_transition.automatic
                     else:
+                        #print("condition false")
                         return False
 
     def natural_key(self):
@@ -199,6 +201,7 @@ class Transition(models.Model):
         super(Transition, self).save(**qwargs)
 
     def is_available(self, user, object_id, object_state_id=None, automatic=False):
+        #print("checking if {} available on obj id {}".format(self.name, object_id))
         if self.is_initial:
             return self.workflow.is_initial_transition_available(user, object_id, object_state_id, automatic=automatic)
         obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
@@ -225,6 +228,7 @@ class Transition(models.Model):
             return False
 
     def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
+        #print("executing {} on obj id {}".format(self.name, object_id))
         if async:
             thr = threading.Thread(target=_execute_transition, args=(self, user, object_id, object_state_id),
                                    kwargs={"automatic": automatic})
@@ -236,6 +240,7 @@ class Transition(models.Model):
 
 def _execute_transition(transition, user, object_id, object_state_id, automatic=False):
     if transition.is_available(user, object_id, automatic=automatic):
+        #print("transition {} available on {}".format(transition, object_id))
         # first execute all sync callbacks within then update the log and state tables all within a transaction
         object_state = _atomic_execution(object_id, object_state_id, transition, user)
         # now trigger all async callbacks
@@ -261,6 +266,7 @@ def _execute_atomatic_transitions(state, object_id, object_state_id, async=True)
 @transaction.atomic
 def _atomic_execution(object_id, object_state_id, transition, user):
     # we first change status for consistency, exceptions in callbacks could break the process
+    #print("executing transition {} on object id {}".format(transition.name, object_id))
     if transition.initial_state is not None:
         if object_state_id:
             objState = CurrentObjectState.objects.get(id=object_state_id,
@@ -273,6 +279,7 @@ def _atomic_execution(object_id, object_state_id, transition, user):
     else:
         objState = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     for c in transition.callback_set.filter(execute_async=False):
+        print("executing {}.{}".format(c.function_module, c.function_name))
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.final_state.workflow, user, object_id, **params)
     TransitionLog.objects.create(object_id=object_id, object_state=objState, user_id=user.id if user else None, transition=transition,
