@@ -124,6 +124,12 @@ class Workflow(models.Model):
     def object_class(self):
         return import_from_path(self.object_type)
 
+    def transition_by_name(self, name):
+        transition = Transition.objects.filter(workflow=self, name__iexact=name)
+        if len(transition) > 0:
+            return transition.first()
+        return None
+
 
 class StateManager(models.Manager):
     def get_by_natural_key(self, name, workflow):
@@ -204,9 +210,14 @@ class Transition(models.Model):
         #print("checking if {} available on obj id {}".format(self.name, object_id))
         if self.is_initial:
             return self.workflow.is_initial_transition_available(user, object_id, object_state_id, automatic=automatic)
-        obj = CurrentObjectState.objects.filter(object_id=object_id, state__id=self.initial_state.id)
-        if obj.exists():
-            obj = obj.first()
+        obj = None
+        if object_state_id is not None:
+            obj = object_state_id
+        else:
+            q = CurrentObjectState.objects.filter(object_id=object_id)
+            if q.exists():
+                obj = q.first()
+        if obj is not None:
             conditions = self.condition_set.all()
             if len(conditions) == 0:
                 if automatic:
