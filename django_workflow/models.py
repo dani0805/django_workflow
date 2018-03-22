@@ -298,7 +298,7 @@ def _atomic_execution(object_id, object_state_id, transition, user):
         print("executing {}.{}".format(c.function_module, c.function_name))
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.final_state.workflow, user, object_id, **params)
-    TransitionLog.objects.create(object_id=object_id, object_state=objState, user_id=user.id if user else None, transition=transition,
+    TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
                                  success=True)
     return objState
 
@@ -440,7 +440,6 @@ class TransitionLog(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
     object_id = models.IntegerField(verbose_name=ugettext_lazy("Object Id"))
-    object_state = models.ForeignKey(CurrentObjectState, blank=True, null=True, on_delete=PROTECT, verbose_name=ugettext_lazy("Object State"))
     transition = models.ForeignKey(Transition, on_delete=PROTECT, verbose_name=ugettext_lazy("Transition"))
     completed_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Time of Completion"))
     success = models.BooleanField(verbose_name=ugettext_lazy("Success"))
