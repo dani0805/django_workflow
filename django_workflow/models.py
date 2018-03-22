@@ -50,24 +50,25 @@ class Workflow(models.Model):
                                 mul_res = div_res
                             else:
                                 mul_res = mul_res * div_res
-                            print(mul_res)
+                            #print(mul_res)
                         # perform multiplications and divisions in float, then convert to timedelta for the rest
                         if isinstance(mul_res, float):
                             mul_res = timedelta(seconds=mul_res)
-                        print(mul_res)
+                        #print(mul_res)
                         if sub_res is None:
                             sub_res = mul_res
                         else:
                             sub_res = sub_res - mul_res
-                        print(sub_res)
+                        #print(sub_res)
                     if res is None:
                         res = sub_res
                     else:
+                        #print ("res:<{}>{}, sub_res:<{}>{}".format(type(res),res, type(sub_res),sub_res))
                         res = res + sub_res
-                    res = res.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    print(res)
+                res = res.strftime("%Y-%m-%dT%H:%M:%SZ")
+                #print("res:<{}>{}".format(type(res),res))
                 dict.update({k:res})
-                print(dict)
+                print("fetching objects with:{}.objects.filter(**{})".format(self.object_type,dict))
         return dict
 
 
@@ -82,7 +83,11 @@ class Workflow(models.Model):
 
     def prefetch_initial_objects(self):
         print("fetching initial candidates")
-        return self.object_class().objects.filter(**self.initial_prefetch_dict) if self.initial_prefetch else None
+        objects = self\
+            .object_class().objects.filter(**self.initial_prefetch_dict)\
+            .exclude(id__in=CurrentObjectState.objects.filter(workflow=self).values_list("object_id", flat=True)) if self.initial_prefetch else []
+        print("found {} objects in the initial prefetch".format(len(objects)))
+        return objects
 
     def __unicode__(self):
         return self.name
@@ -427,6 +432,7 @@ class CurrentObjectState(models.Model):
 
     def save(self, **qwargs):
         self.workflow = self.state.workflow
+        print("saving new object state with parameters {}".format(qwargs))
         super(CurrentObjectState, self).save(**qwargs)
 
 
