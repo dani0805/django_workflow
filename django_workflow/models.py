@@ -285,11 +285,10 @@ def _atomic_execution(object_id, object_state_id, transition, user):
     #print("executing transition {} on object id {}".format(transition.name, object_id))
     if transition.initial_state is not None:
         if object_state_id:
-            objState = CurrentObjectState.objects.get(id=object_state_id,
-                                                      state__workflow=transition.initial_state.workflow)
+             objState = CurrentObjectState.objects.get(id=object_state_id, state__workflow=transition.workflow)
         else:
             objState = CurrentObjectState.objects.filter(object_id=object_id,
-                                                      state__workflow=transition.initial_state.workflow).order_by('-id').first()
+                                                      state__workflow=transition.workflow).order_by('-id').first()
         objState.state = transition.final_state
         objState.save()
     else:

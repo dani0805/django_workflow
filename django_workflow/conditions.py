@@ -78,8 +78,8 @@ def other_filter_exist(workflow, user, object_id, **filter):
 def parse_parameters(filter, user, object_id, workflow):
     params = dict()
     for k, v in filter.items():
-        if v.startswith("{") and v.endswith("}"):
-            parts = v[1:-1].split(".")
+        if v.startswith("{{") and v.endswith("}}"):
+            parts = v[2:-2].split(".")
             o = None
             if parts[0] == "user":
                 o = user
