@@ -426,6 +426,11 @@ class CurrentObjectState(models.Model):
     state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("State"))
     updated_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Last Updated"))
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['workflow', 'object_id']),
+        ]
+
     def __unicode__(self):
         return "{} in state {} since {}".format(self.object_id, self.state, self.updated_ts)
 
