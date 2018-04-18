@@ -8,6 +8,8 @@ from django.db.models import SET_NULL, PROTECT
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy
 from django.db.models.deletion import PROTECT
+from django.utils.timezone import now as django_now
+
 
 # import a definition from a module at runtime
 from django_workflow.utils import import_from, import_from_path
@@ -289,6 +291,7 @@ def _atomic_execution(object_id, object_state_id, transition, user):
         else:
             objState = CurrentObjectState.objects.filter(object_id=object_id,
                                                       state__workflow=transition.workflow).order_by('-id').first()
+        objState.updated_ts = django_now()
         objState.state = transition.final_state
         objState.save()
     else:
