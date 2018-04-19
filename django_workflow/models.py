@@ -70,7 +70,7 @@ class Workflow(models.Model):
                 res = res.strftime("%Y-%m-%dT%H:%M:%SZ")
                 #print("res:<{}>{}".format(type(res),res))
                 dict.update({k:res})
-                print("fetching objects with:{}.objects.filter(**{})".format(self.object_type,dict))
+                #print("fetching objects with:{}.objects.filter(**{})".format(self.object_type,dict))
         return dict
 
 
@@ -84,11 +84,11 @@ class Workflow(models.Model):
         return Transition.objects.get(workflow=self, initial_state=None, final_state=self.initial_state)
 
     def prefetch_initial_objects(self):
-        print("fetching initial candidates")
+        #print("fetching initial candidates")
         objects = self\
             .object_class().objects.filter(**self.initial_prefetch_dict)\
             .exclude(id__in=CurrentObjectState.objects.filter(workflow=self).values_list("object_id", flat=True)) if self.initial_prefetch else []
-        print("found {} objects in the initial prefetch".format(len(objects)))
+        #print("found {} objects in the initial prefetch".format(len(objects)))
         return objects
 
     def __unicode__(self):
@@ -287,17 +287,18 @@ def _atomic_execution(object_id, object_state_id, transition, user):
     #print("executing transition {} on object id {}".format(transition.name, object_id))
     if transition.initial_state is not None:
         if object_state_id:
-             objState = CurrentObjectState.objects.get(id=object_state_id, state__workflow=transition.workflow)
+            objState = CurrentObjectState.objects.get(id=object_state_id, state__workflow=transition.workflow)
         else:
             objState = CurrentObjectState.objects.filter(object_id=object_id,
-                                                      state__workflow=transition.workflow).order_by('-id').first()
-        objState.updated_ts = django_now()
-        objState.state = transition.final_state
-        objState.save()
+                state__workflow=transition.workflow).order_by('-id').first()
+        if objState:
+            objState.updated_ts = django_now()
+            objState.state = transition.final_state
+            objState.save()
     else:
         objState = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     for c in transition.callback_set.filter(execute_async=False):
-        print("executing {}.{}".format(c.function_module, c.function_name))
+        #print("executing {}.{}".format(c.function_module, c.function_name))
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(transition.final_state.workflow, user, object_id, **params)
     TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
@@ -439,7 +440,7 @@ class CurrentObjectState(models.Model):
 
     def save(self, **qwargs):
         self.workflow = self.state.workflow
-        print("saving new object state with parameters {}".format(qwargs))
+        #print("saving new object state with parameters {}".format(qwargs))
         super(CurrentObjectState, self).save(**qwargs)
 
 
