@@ -38,6 +38,10 @@ class WorkflowTest(TestCase):
         t4 = Transition.objects.create(name="auto_slow", initial_state=s1, final_state=s3, automatic=True,
             automatic_delay=1.0 / 24.0, priority=1)
         t2 = Transition.objects.create(name="manual_1", initial_state=s1, final_state=s3, automatic=False)
+        # t5 does not change state and has a delay of 1 second so it should be executed only after the wait
+        t5 = Transition.objects.create(name="auto_self", initial_state=s2, final_state=s2, automatic=True,
+            automatic_delay=1.0 / 24.0 /3600.0, priority=1)
+
         t3 = Transition.objects.create(name="manual_2", initial_state=s2, final_state=s3, automatic=False)
         # we set t3 to be executed only by superusers this can be done with a object_attribute_value conditon
         c1 = Condition.objects.create(condition_type="function", transition=t3)
@@ -90,7 +94,7 @@ class WorkflowTest(TestCase):
         Workflow.objects.all().delete()
         workflow.import_workflow(data)
         self.assertTrue(len(FunctionParameter.objects.all()) == 4)
-        self.assertTrue(len(Transition.objects.all()) == 5)
+        self.assertTrue(len(Transition.objects.all()) == 6)
         self.assertTrue(len(FunctionParameter.objects.filter(workflow__name="Test_Workflow")) == 4)
 
     def test_automatic(self):
@@ -103,6 +107,15 @@ class WorkflowTest(TestCase):
         workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 2")
+        time.sleep(2)
+        self.assertEqual(TransitionLog.objects.count(), 2)
+        workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
+        self.assertEqual(TransitionLog.objects.count(), 3)
+        workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
+        self.assertEqual(TransitionLog.objects.count(), 3)
+        time.sleep(2)
+        workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
+        self.assertEqual(TransitionLog.objects.count(), 4)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
         manual[0].execute(user, user.id)
         s = workflow.get_object_state("Test_Workflow", user.id)
