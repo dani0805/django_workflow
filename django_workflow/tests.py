@@ -60,7 +60,7 @@ class WorkflowTest(TestCase):
             condition=c2
         )
         p21 = FunctionParameter.objects.create(function=f2, name="attribute_name", value="username")
-        p22 = FunctionParameter.objects.create(function=f2, name="attribute_value", value="admin")
+        p22 = FunctionParameter.objects.create(function=f2, name="attribute_value", value="{{ object.username }}")
 
         # we want to print out if transition 1 was executed, this can be done with a callback
         cb1 = Callback.objects.create(transition=t1, function_name="_print", function_module="django_workflow.tests", order=1)
@@ -117,6 +117,7 @@ class WorkflowTest(TestCase):
         workflow.execute_automatic_transitions(workflow_name="Test_Workflow")
         self.assertEqual(TransitionLog.objects.count(), 4)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
+        #print("manual transitions: {}".format(manual))
         manual[0].execute(user, user.id)
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 3")

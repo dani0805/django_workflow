@@ -153,6 +153,10 @@ class State(models.Model):
         return (self.name, self.workflow.name)
 
     def available_transitions(self, user, object_id, automatic=False):
+        #print("checking available transition on state {}: {}".format(
+        #    self.name,
+        #    [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic=automatic)]
+        #))
         return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic=automatic)]
 
 
@@ -204,7 +208,6 @@ class Transition(models.Model):
     def is_available(self, user, object_id, object_state_id=None, automatic=False):
         return _is_transition_available(self, user, object_id, object_state_id=object_state_id, automatic=automatic)
 
-
     def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
         if async:
             thr = threading.Thread(target=_execute_transition, args=(self, user, object_id, object_state_id),
@@ -253,12 +256,17 @@ class Condition(models.Model):
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
     def check_condition(self, user, object_id):
+        #print("Checking condition {}".format(self.condition_type))
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.workflow
-            return call(wf, user, object_id, **params)
+            result = call(wf, user, object_id, **params)
+            if result is None:
+                result = False
+            #print("{}.{} ({}, {}, {}, **{}) = {}".format(func.function_module,func.function_name, wf, user, object_id, params, result))
+            return result
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(user, object_id)
@@ -374,41 +382,34 @@ class TransitionLog(models.Model):
 
 
 def _is_transition_available(transition, user, object_id, object_state_id=None, automatic=False, last_transition=None):
-    # print("checking if {} available on obj id {}".format(self.name, object_id))
+    #print("checking if {} available on obj id {}".format(transition.name, object_id))
     if transition.is_initial:
         return transition.workflow.is_initial_transition_available(user, object_id, object_state_id,
             automatic=automatic)
     obj = None
     if object_state_id is not None:
         obj = CurrentObjectState.objects.get(id=object_state_id)
-        print("1 {}".format(obj))
     else:
         q = CurrentObjectState.objects.filter(object_id=object_id)
         if q.exists():
             obj = q.first()
-            print("2 {}".format(obj))
     if obj is not None:
-        conditions = transition.condition_set.all()
         if last_transition is None:
             last_transition = obj.updated_ts
-        if len(conditions) == 0:
-            if automatic:
-                return transition.automatic and transition.automatic_delay is None or django_now() - last_transition\
-                       > timedelta(
-                    days=transition.automatic_delay)
-            else:
-                return not transition.automatic
-        else:
-            root_condition = conditions.first()
-            if root_condition.check_condition(user, object_id):
-                if automatic:
-                    return transition.automatic and transition.automatic_delay is None or django_now()() - \
-                           last_transition > timedelta(
-                        days=transition.automatic_delay)
-                else:
-                    return not transition.automatic
-            else:
-                return False
+        if automatic != transition.automatic:
+            #print("not executing because of automatic setting")
+            return False
+        if automatic \
+                and transition.automatic_delay is not None \
+                and django_now() - last_transition < timedelta(days=transition.automatic_delay):
+            #print("not executing because of delay")
+            return False
+        root_condition = transition.condition_set.filter(parent_condition__isnull=True)
+        condition_checks = True
+        if root_condition.exists():
+            condition_checks = root_condition.first().check_condition(user, object_id)
+        #print("condition_checks: {}".format(condition_checks))
+        return condition_checks
     else:
         return False
 
