@@ -73,7 +73,7 @@ class Workflow(models.Model):
 
     @property
     def initial_transition(self):
-        return Transition.objects.get(workflow=self, initial_state=None, final_state=self.initial_state)
+        return Transition.objects.filter(workflow=self, initial_state=None, final_state=self.initial_state).first()
 
     def prefetch_initial_objects(self):
         objects = self\

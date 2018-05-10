@@ -9,7 +9,11 @@ def get_workflow(name):
 
 
 def get_available_transitions(workflow_name, user, object_id):
-    return get_object_state(workflow_name, object_id).available_transitions(user, object_id)
+    state = get_object_state(workflow_name, object_id)
+    if state:
+        return state.available_transitions(user, object_id)
+    else:
+        return []
 
 
 def get_object_state(workflow_name, object_id):
@@ -17,15 +21,22 @@ def get_object_state(workflow_name, object_id):
     if not wf:
         raise ValueError("wokflow {} not found!".format(workflow_name))
     state = CurrentObjectState.objects.filter(object_id=object_id, state__workflow__id=wf.id).order_by('-id').first().state
-    if state:
-        return state
-    else:
-        raise ValueError("object_id {} not found in workflow {}!".format(object_id, workflow_name))
+    # do not raise exceptions because it rollbacks transactions in django 2 and this is not wished if you are just
+    # checking if the object has already a workflow. So return None is not found and let the handling to the caller
+    return state
 
+def execute_transition(workflow_name, transition_name, user, object_id, async=False):
+    state = get_object_state(workflow_name, object_id)
+    # silently fail if no state found or action not available
+    if state:
+        wf = workflow.get_workflow(workflow_name)
+        transition = wf.trasition_by_name()
+        if transition and transition.is_available(self, user, object_id):
+            transition.execute(user, object_id)
 
 def is_transition_available(workflow_name, transition_name, user, object_id):
     return len(list(filter(lambda x: x.name == transition_name,
-                           get_object_state(workflow_name, object_id).available_transitions(user, object_id)))) == 1
+        get_available_transitions(workflow_name, user, object_id)))) == 1
 
 
 def is_object_in_workflow(workflow_name, object_id):
