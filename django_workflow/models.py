@@ -205,8 +205,8 @@ class Transition(models.Model):
             self.workflow = self.final_state.workflow
         super(Transition, self).save(**qwargs)
 
-    def is_available(self, user, object_id, object_state_id=None, automatic=False):
-        return _is_transition_available(self, user, object_id, object_state_id=object_state_id, automatic=automatic)
+    def is_available(self, user, object_id, object_state_id=None, automatic=False, last_transition=None):
+        return _is_transition_available(self, user, object_id, object_state_id=object_state_id, automatic=automatic, last_transition=last_transition)
 
     def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
         if async:
@@ -401,6 +401,7 @@ def _is_transition_available(transition, user, object_id, object_state_id=None, 
             return False
         if automatic \
                 and transition.automatic_delay is not None \
+                and last_transition is not None \
                 and django_now() - last_transition < timedelta(days=transition.automatic_delay):
             #print("not executing because of delay")
             return False
@@ -418,7 +419,7 @@ def _execute_transition(transition, user, object_id, object_state_id, automatic=
         recursion_count=0):
     if recursion_count > 10:
         raise RecursionError("too many chained automatic transitions")
-    if transition.is_available(user, object_id, automatic=automatic):
+    if transition.is_available(user, object_id, automatic=automatic, last_transition=last_transition):
         # print("transition {} available on {}".format(transition, object_id))
         # first execute all sync callbacks within then update the log and state tables all within a transaction
         object_state = _atomic_execution(object_id, object_state_id, transition, user)
@@ -430,7 +431,7 @@ def _execute_transition(transition, user, object_id, object_state_id, automatic=
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
         _execute_atomatic_transitions(transition.final_state, object_id, object_state_id,
-            last_transition=last_transition)
+            last_transition=django_now())
         return object_state
 
 
