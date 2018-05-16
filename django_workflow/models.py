@@ -89,7 +89,7 @@ class Workflow(models.Model):
             return not CurrentObjectState.objects.filter(id=object_state_id, workflow=self).exists()
         else:
             last = CurrentObjectState.objects.filter(object_id=object_id, workflow=self).order_by('-id').first()
-            if last and not last.state.is_final_state:
+            if last and last.state.active:
                 return False
             else:
                 conditions = self.initial_transition.condition_set.all()
