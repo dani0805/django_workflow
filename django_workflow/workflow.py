@@ -24,10 +24,13 @@ def get_object_state(workflow_name, object_id):
     wf = get_workflow(workflow_name)
     if not wf:
         raise ValueError("wokflow {} not found!".format(workflow_name))
-    state = CurrentObjectState.objects.filter(object_id=object_id, state__workflow__id=wf.id).order_by('-id').first().state
+    cos = CurrentObjectState.objects.filter(object_id=object_id, state__workflow__id=wf.id).order_by('-id').first()
     # do not raise exceptions because it rollbacks transactions in django 2 and this is not wished if you are just
     # checking if the object has already a workflow. So return None is not found and let the handling to the caller
-    return state
+    if cos is not None:
+        return cos.state
+    else:
+        return None
 
 
 def execute_transition(workflow_name, transition_name, user, object_id, async=False):
