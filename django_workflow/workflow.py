@@ -10,10 +10,14 @@ def get_workflow(name):
 
 def get_available_transitions(workflow_name, user, object_id):
     state = get_object_state(workflow_name, object_id)
+    wf = get_workflow(workflow_name)
     if state:
-        return state.available_transitions(user, object_id)
+        transitions = state.available_transitions(user, object_id)
+        if state.is_final_state:
+            transitions = transitions + [wf.initial_transition,]
+        return transitions
     else:
-        return []
+        return [wf.initial_transition,]
 
 
 def get_object_state(workflow_name, object_id):
@@ -25,14 +29,15 @@ def get_object_state(workflow_name, object_id):
     # checking if the object has already a workflow. So return None is not found and let the handling to the caller
     return state
 
+
 def execute_transition(workflow_name, transition_name, user, object_id, async=False):
     state = get_object_state(workflow_name, object_id)
     # silently fail if no state found or action not available
-    if state:
-        wf = workflow.get_workflow(workflow_name)
-        transition = wf.trasition_by_name()
-        if transition and transition.is_available(self, user, object_id):
-            transition.execute(user, object_id)
+    wf = get_workflow(workflow_name)
+    transition = wf.trasition_by_name(transition_name)
+    if transition and transition.is_available(user, object_id):
+        transition.execute(user, object_id)
+
 
 def is_transition_available(workflow_name, transition_name, user, object_id):
     return len(list(filter(lambda x: x.name == transition_name,
