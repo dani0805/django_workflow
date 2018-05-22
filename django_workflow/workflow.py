@@ -11,13 +11,16 @@ def get_workflow(name):
 def get_available_transitions(workflow_name, user, object_id):
     state = get_object_state(workflow_name, object_id)
     wf = get_workflow(workflow_name)
+    transitions = []
     if state:
         transitions = state.available_transitions(user, object_id)
         if state.is_final_state:
             transitions = transitions + [wf.initial_transition,]
-        return transitions
+
     else:
-        return [wf.initial_transition,]
+        transitions = [wf.initial_transition,]
+    transitions = [t for t in transitions if t is not None]
+    return transitions
 
 
 def get_object_state(workflow_name, object_id):
