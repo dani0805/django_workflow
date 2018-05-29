@@ -390,7 +390,7 @@ def _is_transition_available(transition, user, object_id, object_state_id=None, 
     if object_state_id is not None:
         obj = CurrentObjectState.objects.get(id=object_state_id)
     else:
-        q = CurrentObjectState.objects.filter(object_id=object_id)
+        q = CurrentObjectState.objects.filter(object_id=object_id, workflow=transition.workflow)
         if q.exists():
             obj = q.first()
     if obj is not None:
@@ -402,7 +402,7 @@ def _is_transition_available(transition, user, object_id, object_state_id=None, 
         if automatic \
                 and transition.automatic_delay is not None \
                 and last_transition is not None \
-                and django_now() - last_transition > timedelta(days=transition.automatic_delay):
+                and django_now() - last_transition < timedelta(days=transition.automatic_delay):
             #print("not executing because of delay")
             return False
         root_condition = transition.condition_set.filter(parent_condition__isnull=True)
