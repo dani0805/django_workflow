@@ -91,7 +91,7 @@ class Workflow(models.Model):
             last = CurrentObjectState.objects.filter(object_id=object_id, workflow=self).order_by('-id').first()
             if last and last.state.active:
                 return False
-            else:
+            elif self.initial_transition is not None:
                 conditions = self.initial_transition.condition_set.all()
                 if len(conditions) == 0:
                     if automatic:
@@ -107,6 +107,8 @@ class Workflow(models.Model):
                             return not self.initial_transition.automatic
                     else:
                         return False
+            else:
+                return False
 
     def natural_key(self):
         return (self.name,)
