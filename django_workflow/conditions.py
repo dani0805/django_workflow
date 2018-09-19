@@ -13,8 +13,8 @@ def equals(attr, val):
     else:
         return attr == val
 
-def object_attribute_value(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def object_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         object = workflow.object_class().objects.get(id=object_id)
@@ -25,8 +25,8 @@ def object_attribute_value(workflow, object_id, user, **filter):
     raise ValueError("missing parameter attribute_name or attribute_value")
 
 
-def user_attribute_value(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def user_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         attribute = getattr(user, attribute_name)
@@ -35,8 +35,8 @@ def user_attribute_value(workflow, object_id, user, **filter):
             return equals(attribute, attribute_value)
     raise ValueError("missing parameter attribute_name or attribute_value")
 
-def object_attribute_filter_exist(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def object_attribute_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         object = workflow.object_class().objects.get(id=object_id)
@@ -46,8 +46,8 @@ def object_attribute_filter_exist(workflow, object_id, user, **filter):
         raise ValueError("missing parameter attribute_name")
 
 
-def user_attribute_filter_exist(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def user_attribute_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         attribute = getattr(user, attribute_name)
@@ -56,18 +56,18 @@ def user_attribute_filter_exist(workflow, object_id, user, **filter):
         raise ValueError("missing parameter attribute_name")
 
 
-def object_filter_exist(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def object_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     return workflow.object_class().objects.filter(**params).exists()
 
 
-def user_filter_exist(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def user_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     return type(user).objects.filter(**params).exists()
 
 
-def other_filter_exist(workflow, object_id, user, **filter):
-    params = parse_parameters(filter, object_id, user, workflow)
+def other_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "model_type" in params:
         model_type = import_from_path(params.pop('model_type'))
         return model_type.objects.filter(**params).exists()
@@ -75,9 +75,9 @@ def other_filter_exist(workflow, object_id, user, **filter):
         raise ValueError("missing parameter model_type")
 
 
-def parse_parameters(filter, object_id, user, workflow):
+def parse_parameters(*, workflow, object_id, user, object_state, **kwargs):
     params = dict()
-    for k, v in filter.items():
+    for k, v in kwargs.items():
         if v.startswith("{") and v.endswith("}"):
             parts = v[1:-1].split(".")
             o = None
