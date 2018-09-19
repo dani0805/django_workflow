@@ -45,11 +45,12 @@ class SimpleApprovalFactory:
         # this automatic transition will be activated once all state variable are positive
         all_approvals_completed = Transition.objects.create(name="All {} Approvals Collected".format(name), initial_state=in_approval_state,
             final_state=approved_state, automatic=True)
-        # reject should send the object back to the workflow initial state
-        reject = Transition.objects.create(
-            name="Reject {}".format(name),
-            initial_state=in_approval_state,
-            final_state=workflow.initial_state, automatic=False
+        all_approvals_condition = Condition.objects.create(condition_type="function", workflow=workflow, transition=all_approvals_completed)
+        function = Function.objects.create(
+            workflow=workflow,
+            function_name="is_approver",
+            function_module="django_workflow.all_approvals_collected",
+            condition=all_approvals_condition
         )
         return approved_state
 
@@ -61,6 +62,34 @@ class SimpleApprovalFactory:
         # execute them with independent function parameters
         approval = Transition.objects.create(name=name, initial_state=state,
             final_state=state, automatic=False)
+        SimpleApprovalFactory.set_approval_condtions(approval, workflow)
+
+        # reject should send the object back to the workflow initial state
+        reject = Transition.objects.create(
+            name="Reject {}".format(name),
+            initial_state=state,
+            final_state=workflow.initial_state, automatic=False
+        )
+
+        # on approval we update the state variable as positive
+        callback = Callback.objects.create(
+            function_name="on_approval",
+            function_module="simple_approval.callbacks",
+            workflow=workflow,
+            transition=approval,
+            order=1,
+            execute_async=False
+        )
+        # this stores the name of the variable to be updated
+        param = CallbackParameter.objects.create(
+            name="variable_name",
+            workflow=workflow,
+            callback=callback,
+            value=variable_name
+        )
+
+    @staticmethod
+    def set_approval_condtions(approval, workflow):
         condition = Condition.objects.create(condition_type="function", workflow=workflow, transition=approval)
         function = Function.objects.create(
             workflow=workflow,
@@ -79,21 +108,5 @@ class SimpleApprovalFactory:
             function=function,
             name="roles",
             value=json.dumps([])
-        )
-        # on apoproval we update the state variable as positive
-        callback = Callback.objects.create(
-            function_name="on_approval",
-            function_module="simple_approval.callbacks",
-            workflow=workflow,
-            transition=approval,
-            order=1,
-            execute_async=False
-        )
-        # this stores the name of the variable to be updated
-        param = CallbackParameter.objects.create(
-            name="variable_name",
-            workflow=workflow,
-            callback=callback,
-            value=variable_name
         )
 
