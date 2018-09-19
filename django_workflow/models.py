@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import PROTECT
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy
 
@@ -49,7 +50,7 @@ class StateManager(models.Manager):
 class State(models.Model):
     objects = StateManager()
 
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"))
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT,verbose_name=ugettext_lazy("Workflow"))
     name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     active = models.BooleanField(verbose_name=ugettext_lazy("Active"))
     initial = models.BooleanField(default=False, verbose_name=ugettext_lazy("Initial"))
@@ -67,6 +68,29 @@ class State(models.Model):
         return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic)]
 
 
+class StateVariableDefManager(models.Manager):
+
+    def get_by_natural_key(self, name, workflow):
+        return self.get(name=name, workflow__name=workflow)
+
+
+class StateVariableDef(models.Model):
+    objects = StateVariableDefManager()
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"))
+    state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("State"),
+        related_name="state")
+    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+
+    class Meta:
+        unique_together = (('name', 'workflow', 'state'),)
+
+    def __unicode__(self):
+        return "{}: {} - {}".format(self.workflow.name, self.state.name, self.name)
+
+    def natural_key(self):
+        return self.name, self.state.name, self.workflow.name
+
+
 class TransitionManager(models.Manager):
 
     def get_by_natural_key(self, name, workflow, initial_state, final_state):
@@ -81,10 +105,10 @@ class TransitionManager(models.Manager):
 class Transition(models.Model):
     objects = TransitionManager()
 
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     name = models.CharField(max_length=200, null=True, blank=True, verbose_name=ugettext_lazy("Name"))
-    initial_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Initial State"), related_name="outgoing_transitions")
-    final_state = models.ForeignKey(State, verbose_name=ugettext_lazy("Final State"),
+    initial_state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("Initial State"), related_name="outgoing_transitions")
+    final_state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("Final State"),
         related_name="incoming_transitions")
     priority = models.IntegerField(null=True, blank=True, verbose_name=ugettext_lazy("Priority"))
     automatic = models.BooleanField(verbose_name=ugettext_lazy("Automatic"))
@@ -116,7 +140,7 @@ class Transition(models.Model):
                     return not self.automatic
             else:
                 root_condition = conditions.first()
-                if root_condition.check_condition(object_id, user ):
+                if root_condition.check_condition(object_id, user, obj):
                     if automatic:
                         return self.automatic and self.automatic_delay is None or timezone.now() - obj.updated_ts > timedelta(days=self.automatic_delay)
                     else:
@@ -175,10 +199,10 @@ class Condition(models.Model):
         ("or", "Boolean OR"),
         ("not", "Boolean NOT"),
     ]
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     condition_type = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
-    parent_condition = models.ForeignKey("Condition", null=True, blank=True, verbose_name=ugettext_lazy("Parent Condition"), related_name="child_conditions" )
-    transition = models.ForeignKey(Transition, null=True, blank=True, verbose_name=ugettext_lazy("Transition") )
+    parent_condition = models.ForeignKey("Condition", on_delete=PROTECT, null=True, blank=True, verbose_name=ugettext_lazy("Parent Condition"), related_name="child_conditions" )
+    transition = models.ForeignKey(Transition, on_delete=PROTECT, null=True, blank=True, verbose_name=ugettext_lazy("Transition") )
 
     def clean(self):
         if self.transition and self.parent_condition:
@@ -203,29 +227,29 @@ class Condition(models.Model):
             p = p.parent_condition
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
-    def check_condition(self, object_id, user):
+    def check_condition(self, object_id, user, object_state):
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.transition.initial_state.workflow
-            return call(wf, object_id, user, **params)
+            return call(workflow=wf, object_id=object_id, user=user, object_state=object_state, **params)
             # Not recursive
         elif self.condition_type == "not":
-            return not self.child_conditions.first().check_condition(object_id, user)
+            return not self.child_conditions.first().check_condition(object_id, user, object_state)
             # Recursive
         elif self.condition_type == "and":
-            return all([c.check_condition(object_id, user) for c in self.child_conditions.all()])
+            return all([c.check_condition(object_id, user, object_state) for c in self.child_conditions.all()])
             # Recursive
         elif self.condition_type == "or":
-            return any([c.check_condition(object_id, user) for c in self.child_conditions.all()])
+            return any([c.check_condition(object_id, user, object_state) for c in self.child_conditions.all()])
 
 
 class Function(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     function_name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Function"))
     function_module = models.CharField(max_length=400, verbose_name=ugettext_lazy("Module"))
-    condition = models.ForeignKey(Condition, verbose_name=ugettext_lazy("Condition"))
+    condition = models.ForeignKey(Condition, on_delete=PROTECT, verbose_name=ugettext_lazy("Condition"))
 
     def __unicode__(self):
         return "{} - {}.{}".format(self.condition, self.function_module, self.function_name)
@@ -240,8 +264,8 @@ class Function(models.Model):
 
 
 class FunctionParameter(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    function = models.ForeignKey(Function, verbose_name=ugettext_lazy("Function"), related_name="parameters")
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    function = models.ForeignKey(Function, on_delete=PROTECT, verbose_name=ugettext_lazy("Function"), related_name="parameters")
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 
@@ -254,10 +278,10 @@ class FunctionParameter(models.Model):
 
 
 class Callback(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     function_name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
     function_module = models.CharField(max_length=400, verbose_name=ugettext_lazy("Module"))
-    transition = models.ForeignKey(Transition, verbose_name=ugettext_lazy("Transition"))
+    transition = models.ForeignKey(Transition, on_delete=PROTECT, verbose_name=ugettext_lazy("Transition"))
     order = models.IntegerField(verbose_name=ugettext_lazy("Order"))
     execute_async = models.BooleanField(verbose_name=ugettext_lazy("Execute Asynchronously"), default=False)
 
@@ -274,8 +298,8 @@ class Callback(models.Model):
 
 
 class CallbackParameter(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    callback = models.ForeignKey(Callback, verbose_name=ugettext_lazy("Callback"))
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    callback = models.ForeignKey(Callback, on_delete=PROTECT, verbose_name=ugettext_lazy("Callback"))
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 
@@ -285,9 +309,9 @@ class CallbackParameter(models.Model):
 
 
 class CurrentObjectState(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     object_id = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object Id"))
-    state = models.ForeignKey(State, verbose_name=ugettext_lazy("State"))
+    state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("State"))
     updated_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Last Updated"))
 
     def __unicode__(self):
@@ -298,10 +322,10 @@ class CurrentObjectState(models.Model):
         super(CurrentObjectState, self).save(**qwargs)
 
 class TransitionLog(models.Model):
-    workflow = models.ForeignKey(Workflow, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
     user_id = models.IntegerField(blank=True, null=True, verbose_name=ugettext_lazy("User Id"))
     object_id = models.IntegerField(verbose_name=ugettext_lazy("Object Id"))
-    transition = models.ForeignKey(Transition, verbose_name=ugettext_lazy("Transition"))
+    transition = models.ForeignKey(Transition, on_delete=PROTECT, verbose_name=ugettext_lazy("Transition"))
     completed_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Time of Completion"))
     success = models.BooleanField(verbose_name=ugettext_lazy("Success"))
     ERROR_CODES = [
@@ -315,3 +339,13 @@ class TransitionLog(models.Model):
     def save(self, **qwargs):
         self.workflow = self.transition.workflow
         super(TransitionLog, self).save(**qwargs)
+
+
+class StateVariable(models.Model):
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    current_object_state = models.ForeignKey(CurrentObjectState, on_delete=PROTECT, verbose_name=ugettext_lazy("Object State"))
+    state_variable_def = models.ForeignKey(StateVariableDef, on_delete=PROTECT,
+        verbose_name=ugettext_lazy("Variable Definition"))
+    value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
+
+
