@@ -151,15 +151,18 @@ class Transition(models.Model):
             return False
 
     def execute(self, user, object_id, async=False, automatic=False):
+        print("{}: {} -> {} ".format(self.name,self.initial_state.name, self.final_state.name))
+        print("async: {}".format(async))
         if async:
             thr = threading.Thread(target=_execute_transition, args=(self, user, object_id), kwargs={"automatic":automatic})
             thr.start()
             return thr
         else:
-            _execute_transition(self, user, object_id, automatic=automatic)
+            _execute_transition(self, user, object_id, automatic=automatic, async=async)
 
 
-def _execute_transition(transition, user, object_id, automatic=False):
+def _execute_transition(transition, user, object_id, automatic=False, async=True):
+    print("transition({}).is_available({}, {}, automatic={})= {}".format(transition.name, user, object_id, automatic, transition.is_available(user, object_id, automatic=automatic)))
     if transition.is_available(user, object_id, automatic=automatic):
         # first execute all sync callbacks within then update the log and state tables all within a transaction
         _atomic_execution(object_id, transition, user)
@@ -169,10 +172,11 @@ def _execute_transition(transition, user, object_id, automatic=False):
             thr = threading.Thread(target=c.function, args=(transition.initial_state.workflow, user, object_id), kwargs=params)
             thr.start()
         # finally look for the first automatic transaction that applies and start it if any
-        _execute_atomatic_transitions(transition.final_state, object_id)
+        _execute_atomatic_transitions(transition.final_state, object_id, async=async)
 
 
 def _execute_atomatic_transitions(state, object_id, async=True):
+    print("executing automatic trasitions, async: {}".format(async))
     if not state.active:
         return
     automatic_transitions = state.outgoing_transitions.filter(automatic=True)
@@ -183,9 +187,10 @@ def _execute_atomatic_transitions(state, object_id, async=True):
 
 @transaction.atomic
 def _atomic_execution(object_id, transition, user):
+    object_state = CurrentObjectState.objects.get(object_id=object_id, workflow=transition.workflow)
     for c in transition.callback_set.filter(execute_async=False):
         params = {p.name: p.value for p in c.callback_parameter_set.all()}
-        c.function(transition.initial_state.workflow, user, object_id, **params)
+        c.function(workflow=transition.initial_state.workflow, user=user, object_id=object_id, object_state= object_state, **params)
     objState = CurrentObjectState.objects.get(object_id=object_id, state__workflow=transition.initial_state.workflow)
     objState.state = transition.final_state
     objState.save()
@@ -299,7 +304,7 @@ class Callback(models.Model):
 
 class CallbackParameter(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
-    callback = models.ForeignKey(Callback, on_delete=PROTECT, verbose_name=ugettext_lazy("Callback"))
+    callback = models.ForeignKey(Callback, on_delete=PROTECT, verbose_name=ugettext_lazy("Callback"), related_name="callback_parameter_set")
     name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
     value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
 

@@ -65,7 +65,7 @@ class WorkflowTest(TestCase):
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 2")
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
-        manual[0].execute(user, user.id)
+        manual[0].execute(user, user.id, async=False, automatic=False)
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 3")
 
