@@ -3,9 +3,11 @@ from django.test import TestCase
 
 from django.contrib.auth.models import User
 from django_workflow import workflow
+from django_workflow.graph import Graph
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, \
     CurrentObjectState
 from simple_approval.factory import SimpleApprovalFactory
+from simple_approval.graph import ApprovalGraph
 
 
 class WorkflowTest(TestCase):
@@ -53,9 +55,8 @@ class WorkflowTest(TestCase):
         for t in manual3:
             if t.name.startswith("Approve"):
                 t.execute(user2, user.id)
-        print("object state {} ".format(workflow.get_object_state(workflow_name=wf.name, object_id=user.id).name))
         self.assertEqual("Submitted for Step 0 Approval", workflow.get_object_state(workflow_name=wf.name, object_id=user.id).name)
-        print("state variables {} ".format(list(CurrentObjectState.objects.get(workflow=wf, object_id=user.id).statevariable_set.all())))
+        print(ApprovalGraph(wf).nodes_and_links)
 
 
 

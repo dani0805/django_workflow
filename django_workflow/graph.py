@@ -21,6 +21,8 @@ class Graph:
             {
                 "id": t.id,
                 "name": t.name,
+                "initial_state": t.initial_state.id if t.initial_state else None,
+                "final_state": t.final_state.id,
                 "conditions": [Graph.render_condition(c) for c in t.condition_set.all()],
                 "callbacks": [Graph.render_callback(k) for k in t.callback_set.all()]
 
