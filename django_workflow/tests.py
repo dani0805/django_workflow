@@ -7,7 +7,7 @@ from django_workflow.models import Workflow, State, Transition, Condition, Funct
     CallbackParameter, TransitionLog
 
 
-def _print(workflow, user, object_id, text=""):
+def _print(workflow, user, object_id, object_state=None, text=""):
     print(text)
 
 class WorkflowTest(TestCase):

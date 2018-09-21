@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('django_workflow', '0001_initial'),
+        ('django_workflow', '0011_auto_20180413_1322'),
     ]
 
     operations = [
@@ -27,16 +27,6 @@ class Migration(migrations.Migration):
                 ('state', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='state', to='django_workflow.State', verbose_name='State')),
                 ('workflow', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='django_workflow.Workflow', verbose_name='Workflow')),
             ],
-        ),
-        migrations.AlterField(
-            model_name='condition',
-            name='condition_type',
-            field=models.CharField(choices=[('function', 'Function Call'), ('and', 'Boolean AND'), ('or', 'Boolean OR'), ('not', 'Boolean NOT')], max_length=10, verbose_name='Type'),
-        ),
-        migrations.AlterField(
-            model_name='transitionlog',
-            name='error_code',
-            field=models.CharField(blank=True, choices=[('400', '400 - Not Authorized'), ('500', '500 - Internal Error')], max_length=5, null=True, verbose_name='Error Code'),
         ),
         migrations.AddField(
             model_name='statevariable',

@@ -7,6 +7,7 @@ from django.db.models.manager import Manager
 from django_workflow.utils import import_from, import_from_path
 
 def object_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
+    print("-----",workflow, "-----",object_id, "-----",user, "-----",object_state, kwargs, "------")
     params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
@@ -100,6 +101,6 @@ def parse_value(value, object_id, user, workflow):
         # try to parse a literal
         try:
             return ast.literal_eval(value)
-        except ValueError:
+        except:
             # assume is a string
             return value

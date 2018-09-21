@@ -4,7 +4,7 @@ from django_workflow.conditions import parse_parameters
 from django_workflow.models import CurrentObjectState, Workflow, Transition, CallbackParameter
 
 
-def all_approvals_collected(*ignored, workflow: Workflow, object_id, user, object_state: CurrentObjectState, **kwargs):
+def all_approvals_collected(*ignored, workflow: Workflow, object_id: int, user, object_state: CurrentObjectState, **kwargs):
     # approval transitions are those starting and ending on the current state which have an approval
     # variable "variable_name" set in a callback parameter. We use this information to get the list of variable_name's
     variable_names = CallbackParameter.objects.filter(
@@ -21,7 +21,7 @@ def is_approver(*ignored, workflow: Workflow, object_id, user, object_state: Cur
     params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     print(params)
     if "user_ids" in params:
-        user_ids = json.loads(params.pop('user_ids'))
+        user_ids = params.pop('user_ids')
         if user.id in user_ids:
             return True
     return False

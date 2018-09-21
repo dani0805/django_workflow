@@ -84,7 +84,8 @@ class Workflow(models.Model):
     def __unicode__(self):
         return self.name
 
-    def is_initial_transition_available(self, user, object_id, object_state_id=None, automatic=False):
+    def is_initial_transition_available(self, *, user, object_id, object_state_id=None, automatic=False):
+        print("***", self, "***", object_id, "***", user, "***", object_state_id, "***")
         if object_state_id:
             return not CurrentObjectState.objects.filter(id=object_state_id, workflow=self).exists()
         else:
@@ -100,7 +101,7 @@ class Workflow(models.Model):
                         return not self.initial_transition.automatic
                 else:
                     root_condition = conditions.first()
-                    if root_condition.check_condition(user, object_id):
+                    if root_condition.check_condition(user=user, object_id=object_id, object_state=last):
                         if automatic:
                             return self.initial_transition.automatic
                         else:
@@ -155,7 +156,7 @@ class State(models.Model):
         return (self.name, self.workflow.name)
 
     def available_transitions(self, user, object_id, automatic=False):
-        return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic)]
+        return [t for t in self.outgoing_transitions.all() if t.is_available(user=user, object_id=object_id, automatic=automatic)]
 
 
 class StateVariableDefManager(models.Manager):
@@ -186,7 +187,7 @@ class TransitionManager(models.Manager):
     def get_by_natural_key(self, name, workflow, initial_state, final_state):
         return self.get(
             name=name,
-            initial_state__workflow__name=workflow,
+            workflow__name=workflow,
             initial_state__name=initial_state,
             final_state__name=final_state
         )
@@ -219,7 +220,7 @@ class Transition(models.Model):
                                        self.initial_state.name if self.initial_state else "START", self.final_state.name)
 
     def natural_key(self):
-        return (self.name, self.final_state.workflow.name, self.final_state.name)
+        return (self.name, self.workflow.name, self.initial_state.name if self.initial_state else None, self.final_state.name)
 
     def save(self, **qwargs):
         if self.initial_state:
@@ -228,7 +229,7 @@ class Transition(models.Model):
             self.workflow = self.final_state.workflow
         super(Transition, self).save(**qwargs)
 
-    def is_available(self, user, object_id, object_state_id=None, automatic=False, last_transition=None):
+    def is_available(self, *, user, object_id, object_state_id=None, automatic=False, last_transition=None):
         return _is_transition_available(self, user, object_id, object_state_id=object_state_id, automatic=automatic, last_transition=last_transition)
 
     def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
@@ -238,7 +239,7 @@ class Transition(models.Model):
             thr.start()
             return thr
         else:
-            return _execute_transition(self, user, object_id, object_state_id, automatic=automatic)
+            return _execute_transition(transition=self, user=user, object_id=object_id, object_state_id=object_state_id, automatic=automatic)
 
 
 class Condition(models.Model):
@@ -278,26 +279,27 @@ class Condition(models.Model):
             p = p.parent_condition
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
-    def check_condition(self, object_id, user, object_state):
+    def check_condition(self, *, object_id, user, object_state):
+        print("***", self, "***", object_id, "***", user, "***", object_state, "***")
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.workflow
-            result = call(wf, user, object_id, **params)
+            result = call(workflow=wf, user=user, object_id=object_id, object_state=object_state, **params)
             if result is None:
                 result = False
             #print("{}.{} ({}, {}, {}, **{}) = {}".format(func.function_module,func.function_name, wf, user, object_id, params, result))
             return result
             # Not recursive
         elif self.condition_type == "not":
-            return not self.child_conditions.first().check_condition(user, object_id)
+            return not self.child_conditions.first().check_condition(user, object_id, object_state)
             # Recursive
         elif self.condition_type == "and":
-            return all([c.check_condition(user, object_id) for c in self.child_conditions.all()])
+            return all([c.check_condition(user, object_id, object_state) for c in self.child_conditions.all()])
             # Recursive
         elif self.condition_type == "or":
-            return any([c.check_condition(user, object_id) for c in self.child_conditions.all()])
+            return any([c.check_condition(user, object_id, object_state) for c in self.child_conditions.all()])
 
 
 class Function(models.Model):
@@ -406,18 +408,18 @@ class TransitionLog(models.Model):
 def _is_transition_available(transition, user, object_id, object_state_id=None, automatic=False, last_transition=None):
     #print("checking if {} available on obj id {}".format(transition.name, object_id))
     if transition.is_initial:
-        return transition.workflow.is_initial_transition_available(user, object_id, object_state_id,
+        return transition.workflow.is_initial_transition_available(user=user, object_id=object_id, object_state_id=object_state_id,
             automatic=automatic)
-    obj = None
+    object_state = None
     if object_state_id is not None:
-        obj = CurrentObjectState.objects.get(id=object_state_id)
+        object_state = CurrentObjectState.objects.get(id=object_state_id)
     else:
         q = CurrentObjectState.objects.filter(object_id=object_id, workflow=transition.workflow)
         if q.exists():
-            obj = q.first()
-    if obj is not None:
+            object_state = q.first()
+    if object_state is not None:
         if last_transition is None:
-            last_transition = obj.updated_ts
+            last_transition = object_state.updated_ts
         if automatic != transition.automatic:
             #print("not executing because of automatic setting")
             return False
@@ -430,18 +432,18 @@ def _is_transition_available(transition, user, object_id, object_state_id=None, 
         root_condition = transition.condition_set.filter(parent_condition__isnull=True)
         condition_checks = True
         if root_condition.exists():
-            condition_checks = root_condition.first().check_condition(user, object_id)
+            condition_checks = root_condition.first().check_condition(user=user, object_id=object_id, object_state=object_state)
         #print("condition_checks: {}".format(condition_checks))
         return condition_checks
     else:
         return False
 
 
-def _execute_transition(transition, user, object_id, object_state_id, automatic=False, last_transition=None,
+def _execute_transition(*, transition, user, object_id, object_state_id, automatic=False, last_transition=None,
         recursion_count=0):
     if recursion_count > 10:
         raise RecursionError("too many chained automatic transitions")
-    if transition.is_available(user, object_id, automatic=automatic, last_transition=last_transition):
+    if transition.is_available(user=user, object_id=object_id, object_state_id=object_state_id, automatic=automatic, last_transition=last_transition):
         # print("transition {} available on {}".format(transition, object_id))
         # first execute all sync callbacks within then update the log and state tables all within a transaction
         object_state = _atomic_execution(object_id, object_state_id, transition, user)
@@ -462,33 +464,34 @@ def _execute_atomatic_transitions(state, object_id, object_state_id, async=False
         return None
     automatic_transitions = state.outgoing_transitions.filter(automatic=True)
     for t in automatic_transitions:
-        if t.is_available(None, object_id, automatic=True):
-            return _execute_transition(t, None, object_id, object_state_id, automatic=True, last_transition=last_transition)
+        if t.is_available(user=None, object_id=object_id, object_state_id=object_state_id, automatic=True):
+            return _execute_transition(transition=t, user=None, object_id=object_id, object_state_id=object_state_id, automatic=True, last_transition=last_transition)
 
 
 @transaction.atomic
 def _atomic_execution(object_id, object_state_id, transition, user):
     # we first change status for consistency, exceptions in callbacks could break the process
     # print("executing transition {} on object id {}".format(transition.name, object_id))
+    object_state = None
     if transition.initial_state is not None:
         if object_state_id:
-            objState = CurrentObjectState.objects.get(id=object_state_id, state__workflow=transition.workflow)
+            object_state = CurrentObjectState.objects.get(id=object_state_id, state__workflow=transition.workflow)
         else:
-            objState = CurrentObjectState.objects.filter(object_id=object_id,
+            object_state = CurrentObjectState.objects.filter(object_id=object_id,
                 state__workflow=transition.workflow).order_by('-id').first()
-        if objState:
-            objState.updated_ts = django_now()
-            objState.state = transition.final_state
-            objState.save()
+        if object_state:
+            object_state.updated_ts = django_now()
+            object_state.state = transition.final_state
+            object_state.save()
     else:
-        objState = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
+        object_state = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     for c in transition.callback_set.filter(execute_async=False):
         # print("executing {}.{}".format(c.function_module, c.function_name))
         params = {p.name: p.value for p in c.parameters.all()}
-        c.function(transition.final_state.workflow, user, object_id, **params)
+        c.function(workflow=transition.final_state.workflow, user=user, object_id=object_id, object_state=object_state, **params)
     TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
         success=True)
-    return objState
+    return object_state
 
 
 class StateVariable(models.Model):
