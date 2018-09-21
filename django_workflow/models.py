@@ -21,7 +21,7 @@ class WorkflowManager(models.Manager):
 class Workflow(models.Model):
     objects = WorkflowManager()
 
-    name = models.CharField(max_length=50, unique=True, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=200, unique=True, verbose_name=ugettext_lazy("Name"))
     object_type = models.CharField(max_length=200, verbose_name=ugettext_lazy("Object_Type"))
     initial_prefetch = models.CharField(max_length=4000, null=True, blank=True, verbose_name=ugettext_lazy("Object_Type"))
 
@@ -155,18 +155,39 @@ class State(models.Model):
         return (self.name, self.workflow.name)
 
     def available_transitions(self, user, object_id, automatic=False):
-        #print("checking available transition on state {}: {}".format(
-        #    self.name,
-        #    [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic=automatic)]
-        #))
-        return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic=automatic)]
+        return [t for t in self.outgoing_transitions.all() if t.is_available(user, object_id, automatic)]
+
+
+class StateVariableDefManager(models.Manager):
+
+    def get_by_natural_key(self, name, workflow):
+        return self.get(name=name, workflow__name=workflow)
+
+
+class StateVariableDef(models.Model):
+    objects = StateVariableDefManager()
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"))
+    state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("State"),
+        related_name="state")
+    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+
+    class Meta:
+        unique_together = (('name', 'workflow', 'state'),)
+
+    def __unicode__(self):
+        return "{}: {} - {}".format(self.workflow.name, self.state.name, self.name)
+
+    def natural_key(self):
+        return self.name, self.state.name, self.workflow.name
 
 
 class TransitionManager(models.Manager):
-    def get_by_natural_key(self, name, workflow, final_state):
+
+    def get_by_natural_key(self, name, workflow, initial_state, final_state):
         return self.get(
             name=name,
-            final_state__workflow__name=workflow,
+            initial_state__workflow__name=workflow,
+            initial_state__name=initial_state,
             final_state__name=final_state
         )
 
@@ -257,8 +278,7 @@ class Condition(models.Model):
             p = p.parent_condition
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
-    def check_condition(self, user, object_id):
-        #print("Checking condition {}".format(self.condition_type))
+    def check_condition(self, object_id, user, object_state):
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
@@ -469,3 +489,13 @@ def _atomic_execution(object_id, object_state_id, transition, user):
     TransitionLog.objects.create(object_id=object_id, user_id=user.id if user else None, transition=transition,
         success=True)
     return objState
+
+
+class StateVariable(models.Model):
+    workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"), editable=False)
+    current_object_state = models.ForeignKey(CurrentObjectState, on_delete=PROTECT, verbose_name=ugettext_lazy("Object State"))
+    state_variable_def = models.ForeignKey(StateVariableDef, on_delete=PROTECT,
+        verbose_name=ugettext_lazy("Variable Definition"))
+    value = models.CharField(max_length=4000, verbose_name=ugettext_lazy("Value"))
+
+

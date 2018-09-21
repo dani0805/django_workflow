@@ -60,15 +60,15 @@ def export_workflow(workflow_name):
         objects = Workflow.objects.filter(name=workflow_name)
 
     data = serializers.serialize('json',
-                                 list(objects)
-                                 + list(State.objects.filter(workflow__in=objects))
-                                 + list(Transition.objects.filter(workflow__in=objects))
-                                 + list(Condition.objects.filter(workflow__in=objects))
-                                 + list(Function.objects.filter(workflow__in=objects))
-                                 + list(FunctionParameter.objects.filter(workflow__in=objects))
-                                 + list(Callback.objects.filter(workflow__in=objects))
-                                 + list(CallbackParameter.objects.filter(workflow__in=objects)),
-                                 indent=2, use_natural_foreign_keys=True, use_natural_primary_keys=True)
+        list(objects)
+        + list(State.objects.filter(workflow__in=objects))
+        + list(Transition.objects.filter(workflow__in=objects))
+        + list(Condition.objects.filter(workflow__in=objects))
+        + list(Function.objects.filter(workflow__in=objects))
+        + list(FunctionParameter.objects.filter(workflow__in=objects))
+        + list(Callback.objects.filter(workflow__in=objects))
+        + list(CallbackParameter.objects.filter(workflow__in=objects)),
+        indent=2, use_natural_foreign_keys=True, use_natural_primary_keys=True)
     return data
 
 

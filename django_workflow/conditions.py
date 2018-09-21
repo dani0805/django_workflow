@@ -2,10 +2,12 @@
 import ast
 import numbers
 
-from django_workflow.utils import import_from_path
+from django.db.models.manager import Manager
 
-def object_attribute_value(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+from django_workflow.utils import import_from, import_from_path
+
+def object_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         object = workflow.object_class().objects.get(id=object_id)
@@ -17,8 +19,8 @@ def object_attribute_value(workflow, user, object_id, **filter):
     raise ValueError("missing parameter attribute_name or attribute_value")
 
 
-def user_attribute_value(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def user_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         attribute = getattr(user, attribute_name)
@@ -27,8 +29,8 @@ def user_attribute_value(workflow, user, object_id, **filter):
             return attribute == attribute_value
     raise ValueError("missing parameter attribute_name or attribute_value")
 
-def object_attribute_filter_exist(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def object_attribute_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         object = workflow.object_class().objects.get(id=object_id)
@@ -38,8 +40,8 @@ def object_attribute_filter_exist(workflow, user, object_id, **filter):
         raise ValueError("missing parameter attribute_name")
 
 
-def user_attribute_filter_exist(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def user_attribute_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
         attribute = getattr(user, attribute_name)
@@ -48,18 +50,18 @@ def user_attribute_filter_exist(workflow, user, object_id, **filter):
         raise ValueError("missing parameter attribute_name")
 
 
-def object_filter_exist(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def object_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     return workflow.object_class().objects.filter(**params).exists()
 
 
-def user_filter_exist(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def user_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     return type(user).objects.filter(**params).exists()
 
 
-def other_filter_exist(workflow, user, object_id, **filter):
-    params = parse_parameters(filter, user, object_id, workflow)
+def other_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
+    params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "model_type" in params:
         model_type = import_from_path(params.pop('model_type'))
         return model_type.objects.filter(**params).exists()
@@ -67,10 +69,10 @@ def other_filter_exist(workflow, user, object_id, **filter):
         raise ValueError("missing parameter model_type")
 
 
-def parse_parameters(filter, user, object_id, workflow):
+def parse_parameters(*, workflow, object_id, user, object_state, **kwargs):
     params = dict()
     #print(filter)
-    for k, v in filter.items():
+    for k, v in kwargs.items():
         params.update({k: parse_value(v, object_id, user, workflow)})
     return params
 
