@@ -1,14 +1,26 @@
 import time
-from django.test import TestCase
+#from django.test import TestCase
+from snapshottest.django import TestCase
+
 
 from django.contrib.auth.models import User
 from django_workflow import workflow
+from schema import schema
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
     CallbackParameter, TransitionLog
+from graphene.test import Client
+
 
 
 def _print(workflow, user, object_id, object_state=None, text=""):
     print(text)
+
+
+def api_client_get(url):
+    return {
+        'url': url,
+    }
+
 
 class WorkflowTest(TestCase):
 
@@ -121,4 +133,160 @@ class WorkflowTest(TestCase):
         manual[0].execute(user, user.id)
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 3")
+
+    # workflow_list = DjangoFilterConnectionField(WorkflowNode, filterset_class=WorkflowFilter)
+    # state_list = DjangoFilterConnectionField(StateNode, filterset_class=StateFilter)
+    # state_variable_def_list = DjangoFilterConnectionField(StateVariableDefNode, filterset_class=StateVariableDefFilter)
+    # transition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
+    # condition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
+    # function_list = DjangoFilterConnectionField(FunctionNode, filterset_class=FunctionFilter)
+    # function_parameter_list = DjangoFilterConnectionField(FunctionParameterNode, filterset_class=FunctionParameterFilter)
+    # callback_list = DjangoFilterConnectionField(CallbackNode, filterset_class=CallbackFilter)
+    # callback_parameter_list = DjangoFilterConnectionField(CallbackParameterNode, filterset_class=CallbackParameterFilter)
+    # current_object_state_list = DjangoFilterConnectionField(CurrentObjectStateNode, filterset_class=CurrentObjectStateFilter)
+    # state_variable_list = DjangoFilterConnectionField(StateVariableNode, filterset_class=StateVariableFilter)
+    # transition_log_list = DjangoFilterConnectionField(TransitionLogNode, filterset_class=TransitionLogFilter)
+    #
+    #
+
+    def test_api(self):
+        client = Client(schema)
+        self.assertMatchSnapshot(client.execute('''
+        query workflowList {
+          workflowList {
+            edges{
+              node {
+                id
+                name
+                objectType
+                initialPrefetch
+                initialState {
+                  id
+                  name
+                }
+                initialTransition {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+        '''))
+        self.assertMatchSnapshot(client.execute('''
+                query stateList {
+                  stateList {
+                    edges{
+                      node {
+                        id
+                        name
+                        active
+                        initial
+                        workflow {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+                '''))
+        self.assertMatchSnapshot(client.execute('''
+                query stateList($param: ID) {
+                  stateList(workflow_Id:$param) {
+                    edges{
+                      node {
+                        id
+                        name
+                        active
+                        initial
+                        workflow {
+                          id
+                          name
+                        }
+                        
+                      }
+                    }
+                  }
+                }
+                ''',
+            {"param": "V29ya2Zsb3dOb2RlOjE="}))
+        self.assertMatchSnapshot(client.execute('''
+                query transitionList($param: ID) {
+                  transitionList(workflow_Id:$param) {
+                    edges{
+                      node {
+                        id
+                        name
+                        initialState {
+                          id
+                          name
+                          active
+                          initial
+                          variableDefinitions {
+                            edges {
+                              node {
+                                id
+                                name
+                              }
+                            }
+                          }
+                        }
+                        finalState {
+                          id
+                          name
+                          active
+                          initial
+                          variableDefinitions {
+                            edges {
+                              node {
+                                id
+                                name
+                              }
+                            }
+                          }
+                        }
+                        conditionSet {
+                          edges {
+                            node {
+                              id
+                              conditionType
+                              functionSet {
+                                edges {
+                                  node {
+                                    id
+                                    functionModule
+                                    functionName
+                                    parameters{
+                                      edges {
+                                        node {
+                                          id
+                                          name
+                                          value
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                '''))
+        """self.assertMatchSnapshot(client.execute('''
+                query workflowList {
+                  workflowList {
+                    edges{
+                      node {
+                        id
+                        name
+                      }
+                    }
+                  }
+                }
+                '''))"""
 

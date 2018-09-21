@@ -1,23 +1,8 @@
 import django_filters
 from django_workflow import models
-from graphene import AbstractType, Node
-from graphene_django import DjangoObjectType
+from graphene import AbstractType, Node, Field
+from graphene_django import DjangoObjectType, DjangoConnectionField
 from graphene_django.filter import DjangoFilterConnectionField
-
-
-# Workflow
-
-class WorkflowNode(DjangoObjectType):
-    class Meta:
-        model = models.Workflow
-        interfaces = (Node,)
-        filter_fields = []
-
-
-class WorkflowFilter(django_filters.FilterSet):
-    class Meta:
-        model = models.Workflow
-        fields = []
 
 
 # State
@@ -37,6 +22,30 @@ class StateFilter(django_filters.FilterSet):
         fields = {
             "workflow__id": ["exact",],
             "workflow__name": ["exact",],
+        }
+
+
+# State Variable Definition
+
+class StateVariableDefNode(DjangoObjectType):
+    class Meta:
+        model = models.StateVariableDef
+        interfaces = (Node,)
+        filter_fields = ["workflow__id", "workflow__name", "state__id", "state__name"]
+
+
+class StateVariableDefFilter(django_filters.FilterSet):
+    workflow__id = django_filters.ModelChoiceFilter(queryset=models.Workflow.objects.all().values_list('id', flat=True))
+    state__id = django_filters.ModelChoiceFilter(queryset=models.State.objects.all().values_list('id', flat=True))
+
+    class Meta:
+        model = models.StateVariableDef
+        fields = {
+            "workflow__id": ["exact",],
+            "workflow__name": ["exact",],
+            "state__id": ["exact", ],
+            "state__name": ["exact", ],
+
         }
 
 
@@ -71,6 +80,30 @@ class TransitionFilter(django_filters.FilterSet):
             "final_state__id": ["exact",],
             "final_state__name": ["exact",]
         }
+
+
+# Workflow
+
+class WorkflowNode(DjangoObjectType):
+    initial_state = Field(StateNode)
+    initial_transition = Field(TransitionNode)
+
+    class Meta:
+        model = models.Workflow
+        interfaces = (Node,)
+        filter_fields = []
+
+    def resolve_initial_state(self, info):
+        return self.initial_state
+
+    def resolve_initial_transition(self, info):
+        return self.initial_transition
+
+
+class WorkflowFilter(django_filters.FilterSet):
+    class Meta:
+        model = models.Workflow
+        fields = []
 
 
 # Condition
@@ -234,6 +267,43 @@ class CurrentObjectStateFilter(django_filters.FilterSet):
             "state__name": ["exact",]
         }
 
+
+# State Variables
+
+class StateVariableNode(DjangoObjectType):
+    class Meta:
+        model = models.StateVariable
+        interfaces = (Node,)
+        filter_fields = [
+            "workflow__id",
+            "workflow__name",
+            "current_object_state__state__id",
+            "current_object_state__state__name",
+            "current_object_state__id",
+            "state_variable_def__id",
+            "state_variable_def__name"
+        ]
+
+
+class StateVariableFilter(django_filters.FilterSet):
+    workflow__id = django_filters.ModelChoiceFilter(queryset=models.Workflow.objects.all().values_list('id', flat=True))
+    current_object_state__state__id = django_filters.ModelChoiceFilter(queryset=models.State.objects.all().values_list('id', flat=True))
+    current_object_state__id = django_filters.ModelChoiceFilter(queryset=models.CurrentObjectState.objects.all().values_list('id', flat=True))
+    state_variable_def__id = django_filters.ModelChoiceFilter(queryset=models.StateVariableDef.objects.all().values_list('id', flat=True))
+
+    class Meta:
+        model = models.StateVariable
+        fields = {
+            "workflow__id": ["exact", ],
+            "workflow__name": ["exact", ],
+            "current_object_state__state__id": ["exact", ],
+            "current_object_state__state__name": ["exact", ],
+            "current_object_state__id": ["exact", ],
+            "state_variable_def__id": ["exact", ],
+            "state_variable_def__name": ["exact", ],
+        }
+
+
 # TransitionLog
 
 class TransitionLogNode(DjangoObjectType):
@@ -262,9 +332,10 @@ class TransitionLogFilter(django_filters.FilterSet):
         }
 
 
-class Query(AbstractType):
+class Query(object):
     workflow_list = DjangoFilterConnectionField(WorkflowNode, filterset_class=WorkflowFilter)
     state_list = DjangoFilterConnectionField(StateNode, filterset_class=StateFilter)
+    state_variable_def_list = DjangoFilterConnectionField(StateVariableDefNode, filterset_class=StateVariableDefFilter)
     transition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
     condition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
     function_list = DjangoFilterConnectionField(FunctionNode, filterset_class=FunctionFilter)
@@ -272,5 +343,6 @@ class Query(AbstractType):
     callback_list = DjangoFilterConnectionField(CallbackNode, filterset_class=CallbackFilter)
     callback_parameter_list = DjangoFilterConnectionField(CallbackParameterNode, filterset_class=CallbackParameterFilter)
     current_object_state_list = DjangoFilterConnectionField(CurrentObjectStateNode, filterset_class=CurrentObjectStateFilter)
+    state_variable_list = DjangoFilterConnectionField(StateVariableNode, filterset_class=StateVariableFilter)
     transition_log_list = DjangoFilterConnectionField(TransitionLogNode, filterset_class=TransitionLogFilter)
 

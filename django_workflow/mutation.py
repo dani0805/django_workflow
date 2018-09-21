@@ -1,6 +1,6 @@
 import graphene
 from django_workflow import schema
-from django_workflow.models import Workflow
+from django_workflow.models import Workflow, State
 
 
 class CreateWorkflow(graphene.ClientIDMutation):
@@ -42,6 +42,23 @@ class UpdateWorkflow(graphene.ClientIDMutation):
         workflow.object_type = object_type
         workflow.save()
         return CreateWorkflow(workflow=workflow)
+
+class CreateState(graphene.ClientIDMutation):
+    class Input:
+        workflow_id = graphene.String()
+        name = graphene.String()
+        active = graphene.Boolean()
+        initial = graphene.Boolean()
+
+    state = graphene.Field(schema.StateNode)
+
+    @classmethod
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, name: str, active=True, initial=False):
+        workflow = Workflow.objects.get(id=workflow_id)
+        state = State.objects.create(name=name, active=active, initial=initial)
+
+        return CreateState(state=state)
+
 
 class Mutation(graphene.AbstractType):
     """
