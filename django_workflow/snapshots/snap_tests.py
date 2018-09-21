@@ -376,3 +376,16 @@ snapshots['WorkflowTest::test_api 4'] = {
         }
     }
 }
+
+snapshots['WorkflowTest::test_api 5'] = {
+    'data': {
+        'createWorkflow': {
+            'workflow': {
+                'id': 'V29ya2Zsb3dOb2RlOjI=',
+                'initialPrefetch': '',
+                'name': 'Test 2 WF',
+                'objectType': 'django.contrib.auth.User'
+            }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 import graphene
 from django_workflow import schema
 from django_workflow.models import Workflow, State
+from django_workflow.utils import parse_global_ids
 
 
 class CreateWorkflow(graphene.ClientIDMutation):
@@ -12,11 +13,8 @@ class CreateWorkflow(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.WorkflowNode)
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, **input):
-        name = input.get('name')
-        initial_prefetch = input.get('initialPrefetch')
-        object_type = input.get('objectType')
-        workflow = Workflow.objects.create(name=name, initial_prefetch=initial_prefetch, object_type=object_type)
+    def mutate_and_get_payload(cls, root, info, *, name: str, initialPrefetch: str, objectType: str):
+        workflow = Workflow.objects.create(name=name, initial_prefetch=initialPrefetch, object_type=objectType)
 
         return CreateWorkflow(workflow=workflow)
 
@@ -31,17 +29,14 @@ class UpdateWorkflow(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.WorkflowNode)
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, **input):
-        name = input.get('name')
-        initial_prefetch = input.get('initialPrefetch')
-        object_type = input.get('objectType')
-        id = input.get('id')
-        workflow = Workflow.objects.get(id=id)
+    @parse_global_ids
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, name: str, initial_prefetch: str, object_type: str):
+        workflow = Workflow.objects.get(id=workflow_id)
         workflow.name = name
         workflow.initial_prefetch = initial_prefetch
         workflow.object_type = object_type
         workflow.save()
-        return CreateWorkflow(workflow=workflow)
+        return UpdateWorkflow(workflow=workflow)
 
 class CreateState(graphene.ClientIDMutation):
     class Input:
@@ -53,6 +48,7 @@ class CreateState(graphene.ClientIDMutation):
     state = graphene.Field(schema.StateNode)
 
     @classmethod
+    @parse_global_ids
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, name: str, active=True, initial=False):
         workflow = Workflow.objects.get(id=workflow_id)
         state = State.objects.create(name=name, active=active, initial=initial)

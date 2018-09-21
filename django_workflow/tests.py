@@ -5,11 +5,13 @@ from snapshottest.django import TestCase
 
 from django.contrib.auth.models import User
 from django_workflow import workflow
+from django_workflow.graph import Graph
+from django_workflow.tests_queries import LIST_WORKFLOWS_GQL, LIST_STATES_GQL, CREATE_WORKFLOW_GQL, \
+    LIST_TRANSITIONS_GQL, LIST_WORKFLOW_STATES_GQL
 from schema import schema
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
     CallbackParameter, TransitionLog
 from graphene.test import Client
-
 
 
 def _print(workflow, user, object_id, object_state=None, text=""):
@@ -151,142 +153,14 @@ class WorkflowTest(TestCase):
 
     def test_api(self):
         client = Client(schema)
-        self.assertMatchSnapshot(client.execute('''
-        query workflowList {
-          workflowList {
-            edges{
-              node {
-                id
-                name
-                objectType
-                initialPrefetch
-                initialState {
-                  id
-                  name
-                }
-                initialTransition {
-                  id
-                  name
-                }
-              }
-            }
-          }
-        }
-        '''))
-        self.assertMatchSnapshot(client.execute('''
-                query stateList {
-                  stateList {
-                    edges{
-                      node {
-                        id
-                        name
-                        active
-                        initial
-                        workflow {
-                          id
-                          name
-                        }
-                      }
-                    }
-                  }
-                }
-                '''))
-        self.assertMatchSnapshot(client.execute('''
-                query stateList($param: ID) {
-                  stateList(workflow_Id:$param) {
-                    edges{
-                      node {
-                        id
-                        name
-                        active
-                        initial
-                        workflow {
-                          id
-                          name
-                        }
-                        
-                      }
-                    }
-                  }
-                }
-                ''',
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOWS_GQL))
+        self.assertMatchSnapshot(client.execute(LIST_STATES_GQL))
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_STATES_GQL,
             {"param": "V29ya2Zsb3dOb2RlOjE="}))
-        self.assertMatchSnapshot(client.execute('''
-                query transitionList($param: ID) {
-                  transitionList(workflow_Id:$param) {
-                    edges{
-                      node {
-                        id
-                        name
-                        initialState {
-                          id
-                          name
-                          active
-                          initial
-                          variableDefinitions {
-                            edges {
-                              node {
-                                id
-                                name
-                              }
-                            }
-                          }
-                        }
-                        finalState {
-                          id
-                          name
-                          active
-                          initial
-                          variableDefinitions {
-                            edges {
-                              node {
-                                id
-                                name
-                              }
-                            }
-                          }
-                        }
-                        conditionSet {
-                          edges {
-                            node {
-                              id
-                              conditionType
-                              functionSet {
-                                edges {
-                                  node {
-                                    id
-                                    functionModule
-                                    functionName
-                                    parameters{
-                                      edges {
-                                        node {
-                                          id
-                                          name
-                                          value
-                                        }
-                                      }
-                                    }
-                                  }
-                                }
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                '''))
-        """self.assertMatchSnapshot(client.execute('''
-                query workflowList {
-                  workflowList {
-                    edges{
-                      node {
-                        id
-                        name
-                      }
-                    }
-                  }
-                }
-                '''))"""
+        self.assertMatchSnapshot(client.execute(LIST_TRANSITIONS_GQL))
+        self.assertMatchSnapshot(client.execute(CREATE_WORKFLOW_GQL,
+            variables={"input": {"name": "Test 2 WF", "initialPrefetch": "", "objectType": "django.contrib.auth.User"}}
+        ))
+        workflow = Workflow.objects.get(name="Test_Workflow")
+        print(Graph(workflow).nodes_and_links)
 
