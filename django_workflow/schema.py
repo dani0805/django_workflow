@@ -1,4 +1,6 @@
 import django_filters
+import graphene
+
 from django_workflow import models
 from graphene import AbstractType, Node, Field
 from graphene_django import DjangoObjectType, DjangoConnectionField
@@ -6,6 +8,8 @@ from graphene_django.filter import DjangoFilterConnectionField
 
 
 # State
+from django_workflow.graph import Graph
+
 
 class StateNode(DjangoObjectType):
     class Meta:
@@ -87,11 +91,12 @@ class TransitionFilter(django_filters.FilterSet):
 class WorkflowNode(DjangoObjectType):
     initial_state = Field(StateNode)
     initial_transition = Field(TransitionNode)
+    graph = graphene.JSONString()
 
     class Meta:
         model = models.Workflow
         interfaces = (Node,)
-        filter_fields = []
+        filter_fields = ["id", "name"]
 
     def resolve_initial_state(self, info):
         return self.initial_state
@@ -99,11 +104,17 @@ class WorkflowNode(DjangoObjectType):
     def resolve_initial_transition(self, info):
         return self.initial_transition
 
+    def resolve_graph(self, info):
+        return Graph(workflow=self).nodes_and_links
+
 
 class WorkflowFilter(django_filters.FilterSet):
     class Meta:
         model = models.Workflow
-        fields = []
+        fields = {
+            "id": ["exact", ],
+            "name": ["exact", ],
+        }
 
 
 # Condition

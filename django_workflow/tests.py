@@ -7,7 +7,7 @@ from django.contrib.auth.models import User
 from django_workflow import workflow
 from django_workflow.graph import Graph
 from django_workflow.tests_queries import LIST_WORKFLOWS_GQL, LIST_STATES_GQL, CREATE_WORKFLOW_GQL, \
-    LIST_TRANSITIONS_GQL, LIST_WORKFLOW_STATES_GQL
+    LIST_TRANSITIONS_GQL, LIST_WORKFLOW_STATES_GQL, LIST_WORKFLOW_GRAPH_GQL
 from schema import schema
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
     CallbackParameter, TransitionLog
@@ -156,11 +156,12 @@ class WorkflowTest(TestCase):
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOWS_GQL))
         self.assertMatchSnapshot(client.execute(LIST_STATES_GQL))
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_STATES_GQL,
-            {"param": "V29ya2Zsb3dOb2RlOjE="}))
+            variables={"param": "V29ya2Zsb3dOb2RlOjE="}))
         self.assertMatchSnapshot(client.execute(LIST_TRANSITIONS_GQL))
         self.assertMatchSnapshot(client.execute(CREATE_WORKFLOW_GQL,
             variables={"input": {"name": "Test 2 WF", "initialPrefetch": "", "objectType": "django.contrib.auth.User"}}
         ))
         workflow = Workflow.objects.get(name="Test_Workflow")
-        print(Graph(workflow).nodes_and_links)
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_GRAPH_GQL,
+            variables={"param": "Test_Workflow"}))
 

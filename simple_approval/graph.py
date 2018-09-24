@@ -7,7 +7,7 @@ from django_workflow.graph import Graph
 from django_workflow.models import State, Transition, Workflow
 
 
-class NodeType(Enum):
+class NodeType(str, Enum):
     APPROVAL = "approval"
     JUNCTION = "junction"
     START = "start"

@@ -2,9 +2,10 @@ import graphene
 
 import django_workflow.schema
 import django_workflow.mutation
+import simple_approval.schema
 
 
-class Query(django_workflow.schema.Query, graphene.ObjectType):
+class Query(django_workflow.schema.Query, simple_approval.schema.Query, graphene.ObjectType):
     # This class will inherit from multiple Queries
     # as we begin to add more apps to our project
     pass

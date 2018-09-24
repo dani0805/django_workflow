@@ -1,5 +1,5 @@
 import time
-from django.test import TestCase
+from snapshottest.django import TestCase
 
 from django.contrib.auth.models import User
 from django_workflow import workflow
@@ -8,6 +8,10 @@ from django_workflow.models import Workflow, State, Transition, Condition, Funct
     CurrentObjectState
 from simple_approval.factory import SimpleApprovalFactory
 from simple_approval.graph import ApprovalGraph
+from graphene.test import Client
+
+from schema import schema
+from simple_approval.tests_queries import LIST_WORKFLOW_APPROVAL_GRAPH_GQL
 
 
 class WorkflowTest(TestCase):
@@ -56,8 +60,11 @@ class WorkflowTest(TestCase):
             if t.name.startswith("Approve"):
                 t.execute(user2, user.id)
         self.assertEqual("Submitted for Step 0 Approval", workflow.get_object_state(workflow_name=wf.name, object_id=user.id).name)
-        print(ApprovalGraph(wf).nodes_and_links)
 
+    def test_api(self):
+        client = Client(schema)
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
+            variables={"param": "Test_Workflow"}))
 
 
 

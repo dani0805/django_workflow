@@ -135,3 +135,16 @@ query stateList($param: ID) {
   }
 }
 '''
+LIST_WORKFLOW_GRAPH_GQL = '''
+query workflowList($param: String) {
+  workflowList(name:$param) {
+    edges{
+      node {
+        id
+        name
+        graph
+      }
+    }
+  }
+}
+'''
