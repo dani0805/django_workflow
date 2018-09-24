@@ -38,6 +38,7 @@ class UpdateWorkflow(graphene.ClientIDMutation):
         workflow.save()
         return UpdateWorkflow(workflow=workflow)
 
+
 class CreateState(graphene.ClientIDMutation):
     class Input:
         workflow_id = graphene.String()

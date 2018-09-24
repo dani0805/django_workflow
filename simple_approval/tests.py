@@ -61,6 +61,20 @@ class WorkflowTest(TestCase):
                 t.execute(user2, user.id)
         self.assertEqual("Submitted for Step 0 Approval", workflow.get_object_state(workflow_name=wf.name, object_id=user.id).name)
 
+
+    def test_modify_workflow(self):
+        wf = workflow.get_workflow("Test_Workflow")
+        s = State.objects.get(workflow=wf, name="Submitted for Pre Approval")
+        client = Client(schema)
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
+            variables={"param": "Test_Workflow"}))
+        SimpleApprovalFactory.remove_approval_step(workflow=wf, state=s, approval_name="Approval Pre 0")
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
+            variables={"param": "Test_Workflow"}))
+        SimpleApprovalFactory.remove_approval_step(workflow=wf, state=s, remove_all=True)
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
+            variables={"param": "Test_Workflow"}))
+
     def test_api(self):
         client = Client(schema)
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,

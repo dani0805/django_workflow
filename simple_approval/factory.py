@@ -57,6 +57,63 @@ class SimpleApprovalFactory:
         return approved_state
 
     @staticmethod
+    def remove_approval_step(*, workflow: Workflow, state: State, approve_name=None, variable_name=None, remove_all=False):
+        if remove_all:
+            # we are removing the entire approval, i.e. we grab the state before and the state after merge it in
+            # one state
+            start_state: State = state.incoming_transitions.all().first().initial_state
+            end_state: State = state.outgoing_transitions.filter(final_state__initial=False).first().final_state
+            for t in end_state.outgoing_transitions.all():
+                t.initial_state = start_state
+                t.save()
+            # and remove everything in between
+            for t in end_state.incoming_transitions.all():
+                SimpleApprovalFactory.remove_transition(t)
+            for t in state.outgoing_transitions.all():
+                SimpleApprovalFactory.remove_transition(t)
+            for t in state.incoming_transitions.all():
+                SimpleApprovalFactory.remove_transition(t)
+            for v in state.variable_definitions.all():
+                v.delete()
+            state.delete()
+            end_state.delete()
+        elif variable_name:
+            transition: Transition = state.outgoing_transitions.get(final_state=state, callback__parameters__name="variable_name", callback__parameters__value=variable_name)
+            variable_def:StateVariableDef = state.variable_definitions.filter(name=variable_name)
+            SimpleApprovalFactory.remove_transition(transition)
+            variable_def.delete()
+        elif approve_name:
+            transition: Transition = state.outgoing_transitions.get(final_state=state,
+                name=approve_name)
+            variable_name= CallbackParameter.objects.get(callback__transition=transition, name="variable_name").value
+            variable_def: StateVariableDef = state.variable_definitions.filter(name=variable_name)
+            SimpleApprovalFactory.remove_transition(transition)
+            variable_def.delete()
+        else:
+            raise ValueError("either approve_name or variable_name is provided or remove_all must be true")
+
+    @staticmethod
+    def remove_transition(transition: Transition):
+        for c in transition.condition_set.all():
+            SimpleApprovalFactory.remove_condition(c)
+        for k in transition.callback_set.all():
+            for p in k.parameters.all():
+                p.delete()
+            k.delete()
+        transition.delete()
+
+    @staticmethod
+    def remove_condition(condition: Condition):
+        for c in condition.child_conditions.all():
+            SimpleApprovalFactory.remove_condition(c)
+        for f in condition.function_set.all():
+            for p in f.parameters.all():
+                p.delete()
+            f.delete()
+        condition.delete()
+
+
+    @staticmethod
     def add_parallel_approval(*, workflow: Workflow, state: State, approve_name: str, reject_name: str, variable_name: str):
         # for each parallel approval we create an extended state variable holding a boolean value
         approval_granted = StateVariableDef.objects.create(workflow=workflow, state=state, name=variable_name)
