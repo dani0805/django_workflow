@@ -68,7 +68,7 @@ class WorkflowTest(TestCase):
         client = Client(schema)
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
             variables={"param": "Test_Workflow"}))
-        SimpleApprovalFactory.remove_approval_step(workflow=wf, state=s, approval_name="Approval Pre 0")
+        SimpleApprovalFactory.remove_approval_step(workflow=wf, state=s, variable_name="Approval Pre 0")
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_APPROVAL_GRAPH_GQL,
             variables={"param": "Test_Workflow"}))
         SimpleApprovalFactory.remove_approval_step(workflow=wf, state=s, remove_all=True)

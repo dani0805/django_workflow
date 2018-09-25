@@ -38,18 +38,36 @@ query stateList {
   }
 }
 '''
-CREATE_WORKFLOW_GQL = '''
-mutation createWorkflow($input: CreateWorkflowInput!) {
-  createWorkflow(input:$input) {
-    workflow {
-      id
-      name
-      initialPrefetch
-      objectType
+
+
+MUTATE_WORKFLOW_GRAPH_GQL = '''
+mutation workflowMutation($param: WorkflowMutationInput!) {
+  workflowMutation(input:$param) {
+    id
+    name
+    initialPrefetch
+    objectType 
+    errors {
+      messages
     }
   }
 }
 '''
+MUTATE_STATE_GRAPH_GQL = '''
+mutation stateMutation($param: StateMutationInput!) {
+  stateMutation(input:$param) {
+    id
+    name
+    initial
+    active
+    workflow
+    errors {
+      messages
+    }
+  }
+}
+'''
+
 LIST_TRANSITIONS_GQL = '''
 query transitionList($param: ID) {
   transitionList(workflow_Id:$param) {

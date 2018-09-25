@@ -6,8 +6,9 @@ from snapshottest.django import TestCase
 from django.contrib.auth.models import User
 from django_workflow import workflow
 from django_workflow.graph import Graph
-from django_workflow.tests_queries import LIST_WORKFLOWS_GQL, LIST_STATES_GQL, CREATE_WORKFLOW_GQL, \
-    LIST_TRANSITIONS_GQL, LIST_WORKFLOW_STATES_GQL, LIST_WORKFLOW_GRAPH_GQL
+from django_workflow.tests_queries import LIST_WORKFLOWS_GQL, LIST_STATES_GQL, \
+    LIST_TRANSITIONS_GQL, LIST_WORKFLOW_STATES_GQL, LIST_WORKFLOW_GRAPH_GQL, MUTATE_WORKFLOW_GRAPH_GQL, \
+    MUTATE_STATE_GRAPH_GQL
 from schema import schema
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
     CallbackParameter, TransitionLog
@@ -136,21 +137,6 @@ class WorkflowTest(TestCase):
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "state 3")
 
-    # workflow_list = DjangoFilterConnectionField(WorkflowNode, filterset_class=WorkflowFilter)
-    # state_list = DjangoFilterConnectionField(StateNode, filterset_class=StateFilter)
-    # state_variable_def_list = DjangoFilterConnectionField(StateVariableDefNode, filterset_class=StateVariableDefFilter)
-    # transition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
-    # condition_list = DjangoFilterConnectionField(TransitionNode, filterset_class=TransitionFilter)
-    # function_list = DjangoFilterConnectionField(FunctionNode, filterset_class=FunctionFilter)
-    # function_parameter_list = DjangoFilterConnectionField(FunctionParameterNode, filterset_class=FunctionParameterFilter)
-    # callback_list = DjangoFilterConnectionField(CallbackNode, filterset_class=CallbackFilter)
-    # callback_parameter_list = DjangoFilterConnectionField(CallbackParameterNode, filterset_class=CallbackParameterFilter)
-    # current_object_state_list = DjangoFilterConnectionField(CurrentObjectStateNode, filterset_class=CurrentObjectStateFilter)
-    # state_variable_list = DjangoFilterConnectionField(StateVariableNode, filterset_class=StateVariableFilter)
-    # transition_log_list = DjangoFilterConnectionField(TransitionLogNode, filterset_class=TransitionLogFilter)
-    #
-    #
-
     def test_api(self):
         client = Client(schema)
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOWS_GQL))
@@ -158,10 +144,23 @@ class WorkflowTest(TestCase):
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_STATES_GQL,
             variables={"param": "V29ya2Zsb3dOb2RlOjE="}))
         self.assertMatchSnapshot(client.execute(LIST_TRANSITIONS_GQL))
-        self.assertMatchSnapshot(client.execute(CREATE_WORKFLOW_GQL,
-            variables={"input": {"name": "Test 2 WF", "initialPrefetch": "", "objectType": "django.contrib.auth.User"}}
-        ))
-        workflow = Workflow.objects.get(name="Test_Workflow")
+        self.assertMatchSnapshot(client.execute(MUTATE_WORKFLOW_GRAPH_GQL,
+            variables={"param": {"name": "Test_Workflow 2", "objectType": "django.contrib.auth.User", "initialPrefetch": ""}}))
+        self.assertMatchSnapshot(client.execute(MUTATE_WORKFLOW_GRAPH_GQL,
+            variables={
+                "param": {"name": "Test_Workflow 2", "objectType": "django.contrib.auth.User", "initialPrefetch": ""}}))
+        workflow = Workflow.objects.get(name="Test_Workflow 2")
+        self.assertMatchSnapshot(client.execute(MUTATE_WORKFLOW_GRAPH_GQL,
+            variables={
+                "param": {"id": workflow.id, "name": "Test_Workflow 3", "objectType": "django.contrib.auth.User", "initialPrefetch": ""}}))
+
         self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_GRAPH_GQL,
-            variables={"param": "Test_Workflow"}))
+            variables={"param": "Test_Workflow 3"}))
+
+        self.assertMatchSnapshot(client.execute(MUTATE_STATE_GRAPH_GQL,
+            variables={
+                "param": {"workflow": workflow.id, "name": "New", "initial": True, "active": True}}))
+        self.assertMatchSnapshot(client.execute(LIST_STATES_GQL))
+
+
 
