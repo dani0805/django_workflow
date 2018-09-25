@@ -291,13 +291,13 @@ class Condition(models.Model):
             return result
             # Not recursive
         elif self.condition_type == "not":
-            return not self.child_conditions.first().check_condition(user, object_id, object_state)
+            return not self.child_conditions.first().check_condition(user=user, object_id=object_id, object_state=object_state)
             # Recursive
         elif self.condition_type == "and":
-            return all([c.check_condition(user, object_id, object_state) for c in self.child_conditions.all()])
+            return all([c.check_condition(user=user, object_id=object_id, object_state=object_state) for c in self.child_conditions.all()])
             # Recursive
         elif self.condition_type == "or":
-            return any([c.check_condition(user, object_id, object_state) for c in self.child_conditions.all()])
+            return any([c.check_condition(user=user, object_id=object_id, object_state=object_state) for c in self.child_conditions.all()])
 
 
 class Function(models.Model):
