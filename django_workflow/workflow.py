@@ -86,7 +86,6 @@ def execute_automatic_transitions(workflow_name=None, object_state_id=None, obje
         if wf.initial_prefetch:
             objs = wf.prefetch_initial_objects()
             for obj in objs:
-                print(obj)
                 if wf.is_initial_transition_available(user=None, object_id=obj.id, automatic=True):
                     wf.initial_transition.execute(None, obj.id, object_state_id, automatic=True)
     # execute all other automatic trasitions

@@ -46,7 +46,6 @@ class WorkflowTest(TestCase):
         self.assertEqual(manual[0].final_state.name, "Submitted")
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "New")
-        print("testing {}".format(manual[0].name))
         manual[0].execute(user, user.id)
         s = workflow.get_object_state("Test_Workflow", user.id)
         self.assertEqual(s.name, "Submitted for Pre Approval")

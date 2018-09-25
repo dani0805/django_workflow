@@ -19,7 +19,6 @@ def all_approvals_collected(*ignored, workflow: Workflow, object_id: int, user, 
 
 def is_approver(*ignored, workflow: Workflow, object_id, user, object_state: CurrentObjectState, **kwargs):
     params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
-    print(params)
     if "user_ids" in params:
         user_ids = params.pop('user_ids')
         if user.id in user_ids:

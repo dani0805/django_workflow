@@ -85,7 +85,6 @@ class Workflow(models.Model):
         return self.name
 
     def is_initial_transition_available(self, *, user, object_id, object_state_id=None, automatic=False):
-        print("***", self, "***", object_id, "***", user, "***", object_state_id, "***")
         if object_state_id:
             return not CurrentObjectState.objects.filter(id=object_state_id, workflow=self).exists()
         else:
@@ -280,7 +279,6 @@ class Condition(models.Model):
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
     def check_condition(self, *, object_id, user, object_state):
-        print("***", self, "***", object_id, "***", user, "***", object_state, "***")
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function

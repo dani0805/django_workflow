@@ -174,25 +174,20 @@ class SimpleApprovalFactory:
         param_value = json.loads(param.value)
         param.value = json.dumps(user_ids)
         param.save()
-        print(param.value)
 
     @staticmethod
     def add_user_to_approval(*, workflow:Workflow, transition_name:str, user_id:int):
         param = FunctionParameter.objects.get(function__condition__transition__name=transition_name, workflow=workflow, name="user_ids")
-        print(param.value)
         param_value = json.loads(param.value)
         param_value.append(user_id)
         param.value = json.dumps(param_value)
         param.save()
-        print(param.value)
 
     @staticmethod
     def remove_user_from_approval(*, workflow: Workflow, transition_name: str, user_id: int):
         param = FunctionParameter.objects.get(function__condition__transition__name=transition_name, workflow=workflow, name="user_ids")
-        print(param.value)
         param_value = json.loads(param.value)
         param_value.remove(user_id)
         param.value = json.dumps(param_value)
         param.save()
-        print(param.value)
 

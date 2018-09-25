@@ -61,10 +61,6 @@ class ApprovalGraph(django_workflow.graph.Graph):
                 incoming_transition = state.incoming_transitions.exclude(
                     initial_state=state
                 ).get()
-                print([t.name for t in state.outgoing_transitions.exclude(
-                    Q(final_state=state) |
-                    Q(final_state__initial=True)
-                )])
                 outgoing_transition = state.outgoing_transitions.exclude(
                     Q(final_state=state) |
                     Q(final_state__initial=True)

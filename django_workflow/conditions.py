@@ -7,7 +7,6 @@ from django.db.models.manager import Manager
 from django_workflow.utils import import_from, import_from_path
 
 def object_attribute_value(*, workflow, object_id, user, object_state, **kwargs):
-    print("-----",workflow, "-----",object_id, "-----",user, "-----",object_state, kwargs, "------")
     params = parse_parameters(workflow=workflow, object_id=object_id, user=user, object_state=object_state, **kwargs)
     if "attribute_name" in params:
         attribute_name = params.pop('attribute_name')
@@ -15,7 +14,6 @@ def object_attribute_value(*, workflow, object_id, user, object_state, **kwargs)
         attribute = getattr(object, attribute_name)
         if "attribute_value" in params:
             attribute_value = params.pop('attribute_value')
-            #print("comparing {} with {}".format(attribute, attribute_value))
             return attribute == attribute_value
     raise ValueError("missing parameter attribute_name or attribute_value")
 
