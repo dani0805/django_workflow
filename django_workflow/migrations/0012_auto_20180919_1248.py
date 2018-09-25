@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
             name='StateVariableDef',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, verbose_name='Name')),
+                ('name', models.CharField(max_length=100, verbose_name='Name')),
                 ('state', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='state', to='django_workflow.State', verbose_name='State')),
                 ('workflow', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='django_workflow.Workflow', verbose_name='Workflow')),
             ],

@@ -169,7 +169,7 @@ class StateVariableDef(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"))
     state = models.ForeignKey(State, on_delete=PROTECT, verbose_name=ugettext_lazy("State"),
         related_name="variable_definitions")
-    name = models.CharField(max_length=200, verbose_name=ugettext_lazy("Name"))
+    name = models.CharField(max_length=100, verbose_name=ugettext_lazy("Name"))
 
     class Meta:
         unique_together = (('name', 'workflow', 'state'),)
