@@ -61,8 +61,8 @@ class SimpleApprovalFactory:
         if remove_all:
             # we are removing the entire approval, i.e. we grab the state before and the state after merge it in
             # one state
-            start_state: State = state.incoming_transitions.all().first().initial_state
-            end_state: State = state.outgoing_transitions.filter(final_state__initial=False).first().final_state
+            start_state = state.incoming_transitions.all().first().initial_state
+            end_state = state.outgoing_transitions.filter(final_state__initial=False).first().final_state
             for t in end_state.outgoing_transitions.all():
                 t.initial_state = start_state
                 t.save()

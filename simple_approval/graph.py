@@ -85,8 +85,8 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "name": incoming_transition.name,
                             "initial_state": incoming_transition.initial_state.id if incoming_transition.initial_state else None,
                             "final_state": incoming_transition.final_state.id,
-                            "start_node":incoming_transition.initial_state.id if incoming_transition.initial_state else None,
-                            "end_node": self.node_id_seq,
+                            "source":incoming_transition.initial_state.id if incoming_transition.initial_state else None,
+                            "target": self.node_id_seq,
                             "conditions": [Graph.render_condition(c) for c in incoming_transition.condition_set.all()],
                             "callbacks": [Graph.render_callback(k) for k in incoming_transition.callback_set.all()]
 
@@ -106,8 +106,8 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "name": approval_transition.name,
                             "initial_state": outgoing_transition.initial_state.id,
                             "final_state": outgoing_transition.final_state.id,
-                            "start_node": self.node_id_seq,
-                            "end_node": outgoing_transition.final_state.id,
+                            "source": self.node_id_seq,
+                            "target": outgoing_transition.final_state.id,
                             "approval_conditions": [Graph.render_condition(c) for c in approval_transition.condition_set.all()],
                             "approval_callbacks": [Graph.render_callback(k) for k in approval_transition.callback_set.all()],
                             "conditions": [Graph.render_condition(c) for c in outgoing_transition.condition_set.all()],
