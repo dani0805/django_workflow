@@ -1,5 +1,6 @@
 import time
 #from django.test import TestCase
+from django.db.models import Q
 from snapshottest.django import TestCase
 
 
@@ -11,7 +12,7 @@ from django_workflow.tests_queries import LIST_WORKFLOWS_GQL, LIST_STATES_GQL, \
     MUTATE_STATE_GRAPH_GQL
 from schema import schema
 from django_workflow.models import Workflow, State, Transition, Condition, Function, FunctionParameter, Callback, \
-    CallbackParameter, TransitionLog
+    CallbackParameter, TransitionLog, clone
 from graphene.test import Client
 
 
@@ -162,5 +163,24 @@ class WorkflowTest(TestCase):
                 "param": {"workflow": workflow.id, "name": "New", "initial": True, "active": True}}))
         self.assertMatchSnapshot(client.execute(LIST_STATES_GQL))
 
-
+    def test_clone(self):
+        wf = workflow.get_workflow("Test_Workflow")
+        old_id = wf.id
+        new_name = "New Clone Test"
+        new_prefetch = "{'foo':'bar'}"
+        new_workflow: Workflow
+        old_workflow: Workflow
+        new_workflow, old_workflow, state_map, transition_map = wf.clone(name=new_name, initial_prefetch=new_prefetch)
+        self.assertEqual(old_id, old_workflow.id)
+        self.assertEqual(new_workflow.name, new_name)
+        self.assertEqual(new_workflow.initial_prefetch, new_prefetch)
+        self.assertTrue(len(set(state_map.keys()).intersection(state_map.values())) == 0, "new and old states still share values in state map")
+        self.assertTrue(len(set(transition_map.keys()).intersection(transition_map.values())) == 0,
+            "new and old transitions still share values in transition map")
+        old_states = old_workflow.state_set.all().values_list('id', flat=True)
+        new_target_states = State.objects.filter(Q(incoming_transitions__workflow=new_workflow) | Q(outgoing_transitions__workflow=new_workflow)).values_list('id', flat=True)
+        self.assertTrue(len(set(new_target_states).intersection(old_states)) == 0, "new and old workflow still share states")
+        client = Client(schema)
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOWS_GQL))
+        self.assertMatchSnapshot(client.execute(LIST_WORKFLOW_GRAPH_GQL))
 

@@ -15,7 +15,8 @@ from django_workflow.utils import import_from, import_from_path
 
 T = TypeVar('T', bound=models.Model)
 
-def clone(old_object: T, *, defaults: dict) -> (T, T):
+def clone(old_object: T, **defaults) -> (T, T):
+
     id = old_object.id
     new_object = old_object
     new_object.id = None
@@ -140,18 +141,18 @@ class Workflow(models.Model):
             return transition.first()
         return None
 
-    def clone_with_name(self, name: str) -> ('Workflow', dict, dict):
+    def clone(self, *, name, **defaults) -> ('Workflow', 'Workflow', dict, dict):
         state_map = dict()
         transition_map = dict()
-        new_wf, old_wf = clone(self, defaults={"name": name})
+        new_wf, old_wf = clone(self, name=name, **defaults)
         for state in old_wf.state_set.all():
-            new_state, old_state = state.clone_in_workflow(new_wf)
+            new_state, old_state = state.clone(workflow=new_wf)
             state_map.update({old_state.id: new_state.id})
         for transition in old_wf.transition_set.all():
-            new_transition, old_transition = transition.clone_in_workflow(new_wf, state_map=state_map)
+            new_transition, old_transition = transition.clone(workflow=new_wf, state_map=state_map)
             transition_map.update({old_transition.id: new_transition.id})
 
-        return new_wf, state_map, transition_map
+        return new_wf, old_wf, state_map, transition_map
 
 
 class StateManager(models.Manager):
@@ -184,10 +185,10 @@ class State(models.Model):
         return [t for t in self.outgoing_transitions.all() if
             t.is_available(user=user, object_id=object_id, automatic=automatic)]
 
-    def clone_in_workflow(self, workflow: Workflow) -> ('State', 'State'):
-        new_state, old_state = clone(self, defaults={"workflow":workflow})
+    def clone(self, *, workflow: Workflow, **defaults) -> ('State', 'State'):
+        new_state, old_state = clone(self, workflow=workflow, **defaults)
         for variableDef in old_state.variable_definitions.all():
-            new_var, _ = clone(variableDef, defaults={"state": new_state})
+            new_var, _ = clone(variableDef, state=new_state, **defaults)
         return new_state, old_state
 
 
@@ -221,6 +222,7 @@ class TransitionManager(models.Manager):
             initial_state__name=initial_state,
             final_state__name=final_state
         )
+
 
 class Transition(models.Model):
     objects = TransitionManager()
@@ -276,16 +278,17 @@ class Transition(models.Model):
             return _execute_transition(transition=self, user=user, object_id=object_id,
                 object_state_id=object_state_id, automatic=automatic)
 
-    def clone_in_workflow(self, workflow: Workflow, *, state_map) -> ('Transition', 'Transition'):
-        new_transition, old_transition = clone(self, defaults={"workflow": workflow})
-        if old_transition.initial_state.id:
-            new_transition.initial_state = State.objects.get(workflow=workflow, id=state_map[old_transition.initial_state.id])
-        new_transition.final_state = State.objects.get(workflow=workflow, id=state_map[old_transition.final_state.id])
+    def clone(self, *, workflow: Workflow, state_map: dict, **defaults) -> ('Transition', 'Transition'):
+        final_state = State.objects.get(workflow=workflow, id=state_map[self.final_state.id])
+        initial_state = None
+        if self.initial_state:
+            initial_state = State.objects.get(workflow=workflow,
+                id=state_map[self.initial_state.id])
+        new_transition, old_transition = clone(self, workflow=workflow, initial_state=initial_state, final_state=final_state)
         for condition in old_transition.condition_set.all():
-            new_condition, old_condition = condition.clone_in_workflow(workflow=workflow, defaults={'transition': new_transition})
+            new_condition, old_condition = condition.clone(workflow=workflow, transition=new_transition)
         for callback in old_transition.callback_set.all():
-            new_condition, old_condition = callback.clone_in_workflow(workflow=workflow,
-                defaults={'transition': new_transition})
+            new_condition, old_condition = callback.clone(workflow=workflow, transition=new_transition)
         return new_transition, old_transition
 
 
@@ -353,6 +356,15 @@ class Condition(models.Model):
             return any([c.check_condition(user=user, object_id=object_id, object_state=object_state) for c in
                 self.child_conditions.all()])
 
+    def clone(self, *, workflow: Workflow, **defaults) -> ('Condition', 'Condition'):
+        #old_condition: Condition
+        new_condition, old_condition = clone(self, workflow=workflow, **defaults)
+        for condition in old_condition.child_conditions.all():
+            new_child, old_child = condition.clone(workflow=workflow, parent_condition=new_condition)
+        for function in old_condition.function_set.all():
+            new_function, old_function = function.clone(workflow=workflow, condition=new_condition)
+        return new_condition, old_condition
+
 
 class Function(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
@@ -372,6 +384,13 @@ class Function(models.Model):
     def function(self):
         return import_from(self.function_module, self.function_name)
 
+    def clone(self, *, workflow: Workflow, **defaults) -> ('Function', 'Function'):
+        #old_function: Function
+        new_function, old_function = clone(self, workflow=workflow, **defaults)
+        for param in old_function.parameters.all():
+            new_param, old_param = param.clone(workflow=workflow, function=new_function)
+        return new_function, old_function
+
 
 class FunctionParameter(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
@@ -387,6 +406,10 @@ class FunctionParameter(models.Model):
     def save(self, **qwargs):
         self.workflow = self.function.workflow
         super(FunctionParameter, self).save(**qwargs)
+
+    def clone(self, *, workflow: Workflow, **defaults) -> ('FunctionParameter', 'FunctionParameter'):
+        new_param, old_param = clone(self, workflow=workflow, **defaults)
+        return new_param, old_param
 
 class Callback(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
@@ -408,6 +431,14 @@ class Callback(models.Model):
     class Meta:
         ordering = ["order"]
 
+    def clone(self, *, workflow: Workflow, **defaults) -> ('Callback', 'Callback'):
+        #old_function: Function
+        new_callback, old_callback = clone(self, workflow=workflow, **defaults)
+        for param in old_callback.parameters.all():
+            new_param, old_param = param.clone(workflow=workflow, callback=new_callback)
+        return new_callback, old_callback
+
+
 class CallbackParameter(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
         editable=False)
@@ -419,6 +450,11 @@ class CallbackParameter(models.Model):
     def save(self, **qwargs):
         self.workflow = self.callback.workflow
         super(CallbackParameter, self).save(**qwargs)
+
+    def clone(self, *, workflow: Workflow, **defaults) -> ('CallbackParameter', 'CallbackParameter'):
+        new_param, old_param = clone(self, workflow=workflow, **defaults)
+        return new_param, old_param
+
 
 class CurrentObjectState(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
