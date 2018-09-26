@@ -78,7 +78,6 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "variables": [{"id": v.id, "name": v.name} for v in state.variable_definitions.all()]
                         }
                     )
-                    self.node_id_seq += 1
                     links.append(
                         {
                             "id":self.link_id_seq,
@@ -117,6 +116,8 @@ class ApprovalGraph(django_workflow.graph.Graph):
                         }
                     )
                     self.link_id_seq += 1
+                    self.node_id_seq += 1
+
             else:
                 nodes.append(
                     {

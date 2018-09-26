@@ -78,15 +78,15 @@ class SimpleApprovalFactory:
             state.delete()
             end_state.delete()
         elif variable_name:
-            transition: Transition = state.outgoing_transitions.get(final_state=state, callback__parameters__name="variable_name", callback__parameters__value=variable_name)
-            variable_def:StateVariableDef = state.variable_definitions.filter(name=variable_name)
+            transition = state.outgoing_transitions.get(final_state=state, callback__parameters__name="variable_name", callback__parameters__value=variable_name)
+            variable_def = state.variable_definitions.filter(name=variable_name)
             SimpleApprovalFactory.remove_transition(transition)
             variable_def.delete()
         elif approve_name:
-            transition: Transition = state.outgoing_transitions.get(final_state=state,
+            transition = state.outgoing_transitions.get(final_state=state,
                 name=approve_name)
             variable_name= CallbackParameter.objects.get(callback__transition=transition, name="variable_name").value
-            variable_def: StateVariableDef = state.variable_definitions.filter(name=variable_name)
+            variable_def = state.variable_definitions.filter(name=variable_name)
             SimpleApprovalFactory.remove_transition(transition)
             variable_def.delete()
         else:
