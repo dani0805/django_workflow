@@ -11,10 +11,11 @@ class SimpleApprovalFactory:
         wf = Workflow.objects.create(name=name)
         # 3 states
         initial_state = State.objects.create(name="New", workflow=wf, initial=True, active=True)
-        submitted_state = State.objects.create(name="Submitted", workflow=wf, active=True)
-        submission = Transition.objects.create(name="Submit for Approval", initial_state=initial_state,
-            final_state=submitted_state, automatic=False)
-        approved_state = submitted_state
+        # submitted_state = State.objects.create(name="Submitted", workflow=wf, active=True)
+        # submission = Transition.objects.create(name="Submit for Approval", initial_state=initial_state,
+        #     final_state=submitted_state, automatic=False)
+        # approved_state = submitted_state
+        approved_state = initial_state
         for i in range(approval_steps):
             approved_state = SimpleApprovalFactory.insert_approval_step(name="Step {}".format(i), workflow=wf, state=approved_state)
         approved_state.active = False
