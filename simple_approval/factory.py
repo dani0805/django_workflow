@@ -70,6 +70,10 @@ class SimpleApprovalFactory:
         StateVariableDef.objects.create(workflow=workflow, name="approved", state=state)
 
     @staticmethod
+    def get_published_state(*, workflow: Workflow):
+        return State.objects.get(workflow=workflow, variable_definitions__name="approved")
+
+    @staticmethod
     def is_published(*, workflow: Workflow, state: State):
         return StateVariableDef.objects.filter(workflow=workflow, name="approved", state=state).exists()
 
@@ -77,6 +81,10 @@ class SimpleApprovalFactory:
     def set_archived_state(*, workflow: Workflow, state: State):
         StateVariableDef.objects.filter(workflow=workflow, name="archived").delete()
         StateVariableDef.objects.create(workflow=workflow, name="archived", state=state)
+
+    @staticmethod
+    def get_archived_state(*, workflow: Workflow):
+        return State.objects.get(workflow=workflow, variable_definitions__name="archived")
 
     @staticmethod
     def is_archived(*, workflow: Workflow, state: State):
