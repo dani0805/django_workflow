@@ -8,6 +8,7 @@ from django_workflow.models import State, Transition, Workflow
 
 
 class NodeType(str, Enum):
+    APPROVED = "approved"
     APPROVAL = "approval"
     JUNCTION = "junction"
     START = "start"

@@ -17,8 +17,13 @@ class SimpleApprovalFactory:
         approved_state = submitted_state
         for i in range(approval_steps):
             approved_state = SimpleApprovalFactory.insert_approval_step(name="Step {}".format(i), workflow=wf, state=approved_state)
-        approved_state.active = False
+        approved_state.name = "Approved"
         approved_state.save()
+        archived_state = State.objects.create(name="Archived", workflow=wf, active=False)
+        archive = Transition.objects.create(name="Archive", initial_state=approved_state,
+            final_state=archived_state, automatic=False)
+        SimpleApprovalFactory.set_archived_state(workflow=wf, state=archived_state)
+
         return wf
 
     @staticmethod
@@ -54,7 +59,28 @@ class SimpleApprovalFactory:
             function_module="simple_approval.conditions",
             condition=all_approvals_condition
         )
+        if SimpleApprovalFactory.is_published(workflow=workflow, state=state):
+            SimpleApprovalFactory.set_published_state(workflow=workflow, state=approved_state)
         return approved_state
+
+    @staticmethod
+    def set_published_state(*, workflow: Workflow, state: State):
+        StateVariableDef.objects.filter(workflow=workflow, name="approved").delete()
+        StateVariableDef.objects.create(workflow=workflow, name="approved", state=state)
+
+    @staticmethod
+    def is_published(*, workflow: Workflow, state: State):
+        return StateVariableDef.objects.filter(workflow=workflow, name="approved", state=state).exists()
+
+    @staticmethod
+    def set_archived_state(*, workflow: Workflow, state: State):
+        StateVariableDef.objects.filter(workflow=workflow, name="archived").delete()
+        StateVariableDef.objects.create(workflow=workflow, name="archived", state=state)
+
+    @staticmethod
+    def is_archived(*, workflow: Workflow, state: State):
+        return StateVariableDef.objects.filter(workflow=workflow, name="approved", state=state).exists()
+
 
     @staticmethod
     def remove_approval_step(*, workflow: Workflow, state: State, approve_name=None, variable_name=None, remove_all=False):

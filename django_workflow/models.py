@@ -15,6 +15,7 @@ from django_workflow.utils import import_from, import_from_path
 
 T = TypeVar('T', bound=models.Model)
 
+
 def clone(old_object: T, **defaults) -> (T, T):
 
     id = old_object.id
