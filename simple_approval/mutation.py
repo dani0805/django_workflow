@@ -8,15 +8,15 @@ from simple_approval.factory import SimpleApprovalFactory
 class CreateApprovalWorkflow(graphene.ClientIDMutation):
     class Input:
         name = graphene.String()
-        objectType = graphene.String()
-        userModel = graphene.String()
-        approvalSteps = graphene.Int()
+        object_type = graphene.String()
+        user_model = graphene.String()
+        approval_steps = graphene.Int()
 
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    def mutate_and_get_payload(cls, root, info, *, name: str, objectType: str, userModel: str, approvalSteps: int):
-        workflow = SimpleApprovalFactory.new_approval_workflow(name=name,object_model=objectType, user_model=userModel, approval_steps=approvalSteps)
+    def mutate_and_get_payload(cls, root, info, *, name: str, object_type: str, user_model: str, approval_steps: int):
+        workflow = SimpleApprovalFactory.new_approval_workflow(name=name,object_model=object_type, user_model=user_model, approval_steps=approval_steps)
 
         return CreateApprovalWorkflow(workflow=workflow)
 
