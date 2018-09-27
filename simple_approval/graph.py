@@ -109,8 +109,8 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "final_state": outgoing_transition.final_state.id,
                             "source": self.node_id_seq,
                             "target": outgoing_transition.final_state.id,
-                            "approval_conditions": [Graph.render_condition(c) for c in approval_transition.condition_set.all()],
-                            "approval_callbacks": [Graph.render_callback(k) for k in approval_transition.callback_set.all()],
+                            "approvalConditions": [Graph.render_condition(c) for c in approval_transition.condition_set.all()],
+                            "approvalCallbacks": [Graph.render_callback(k) for k in approval_transition.callback_set.all()],
                             "conditions": [Graph.render_condition(c) for c in outgoing_transition.condition_set.all()],
                             "callbacks": [Graph.render_callback(k) for k in outgoing_transition.callback_set.all()]
 
