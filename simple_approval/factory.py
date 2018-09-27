@@ -70,7 +70,7 @@ class SimpleApprovalFactory:
         StateVariableDef.objects.create(workflow=workflow, name="approved", state=state)
 
     @staticmethod
-    def get_published_state(*, workflow: Workflow):
+    def get_published_state(*, workflow: Workflow) -> State:
         return State.objects.get(workflow=workflow, variable_definitions__name="approved")
 
     @staticmethod
@@ -83,7 +83,7 @@ class SimpleApprovalFactory:
         StateVariableDef.objects.create(workflow=workflow, name="archived", state=state)
 
     @staticmethod
-    def get_archived_state(*, workflow: Workflow):
+    def get_archived_state(*, workflow: Workflow) -> State:
         return State.objects.get(workflow=workflow, variable_definitions__name="archived")
 
     @staticmethod
