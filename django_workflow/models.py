@@ -130,7 +130,7 @@ class Workflow(models.Model):
 
     def add_object(self, object_id, async=True):
         process = CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
-        _execute_atomatic_transitions(self.initial_state, object_id, process, async=async)
+        _execute_atomatic_transitions(self.initial_state, object_id, process.id, async=async)
         return process
 
     def object_class(self):
