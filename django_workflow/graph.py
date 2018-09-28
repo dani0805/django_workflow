@@ -50,7 +50,9 @@ class Graph:
                 {
                     "id": p.id,
                     "name": p.name,
-                    "value": p.value
+                    "value": p.value,
+                    "function": p.function_id,
+                    "workflow": p.workflow_id
                 }
                 for p in function.parameters.all()
             ]
