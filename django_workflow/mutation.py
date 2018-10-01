@@ -1,7 +1,9 @@
 import graphene
 from graphene_django.rest_framework.mutation import SerializerMutation
 from rest_framework import serializers
-
+# from utils import parse_global_ids
+from . import schema
+from .utils import parse_global_ids
 from django_workflow.models import Workflow, State, StateVariableDef, Transition, Condition, Function, \
     FunctionParameter, Callback, CallbackParameter, CurrentObjectState, TransitionLog, StateVariable
 
@@ -19,6 +21,21 @@ class WorkflowMutation(SerializerMutation):
         serializer_class = WorkflowSerializer
         model_operations = ['create', 'update']
         lookup_field = 'id'
+
+
+class CloneWorkflow(graphene.ClientIDMutation):
+    class Input:
+        workflow_id = graphene.String()
+        name = graphene.String()
+
+    workflow = graphene.Field(schema.WorkflowNode)
+
+    @classmethod
+    @parse_global_ids()
+    def mutate_and_get_payload(cls, root, info, **input):
+        workflow = Workflow.objects.get(pk=input.get('workflow_id'))
+        new_workflow, _, _, _ = workflow.clone(name=input.get('name'))
+        return CloneWorkflow(workflow=new_workflow)
 
 
 class StateSerializer(serializers.ModelSerializer):
@@ -202,6 +219,7 @@ class Mutation(graphene.AbstractType):
     callback_parameter_mutation = CallbackParameterMutation.Field()
     current_object_state_mutation = CurrentObjectStateMutation.Field()
     transition_log_mutation = TransitionLogMutation.Field()
+    clone_workflow = CloneWorkflow.Field()
 
     """
     High Level API: execute single transition, execute automatic transitions
