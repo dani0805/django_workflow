@@ -3,6 +3,7 @@ import json
 from django_workflow.models import Workflow, State, Transition, StateVariableDef, Function, Callback, \
     CallbackParameter, \
     Condition, FunctionParameter
+from simple_approval.models import ApprovalGroup
 
 
 class SimpleApprovalFactory:
@@ -188,6 +189,9 @@ class SimpleApprovalFactory:
             callback=callback,
             value=variable_name
         )
+        group = ApprovalGroup.objects.create()
+        group.transitions.add(approval, reject)
+
 
     @staticmethod
     def set_approval_condtions(*, transition, workflow):
@@ -213,25 +217,31 @@ class SimpleApprovalFactory:
 
     @staticmethod
     def set_users_for_approval(*, workflow: Workflow, transition_name: str, user_ids: [int]):
-        param = FunctionParameter.objects.get(function__condition__transition__name=transition_name, workflow=workflow,
-            name="user_ids")
-        param.value = json.dumps(user_ids)
-        param.save()
+        for param in FunctionParameter.objects.filter(
+                function__condition__transition__group__transitions__name=transition_name,
+                workflow=workflow,
+                name="user_ids"):
+            param.value = json.dumps(user_ids)
+            param.save()
 
     @staticmethod
     def add_user_to_approval(*, workflow: Workflow, transition_name: str, user_id: int):
-        param = FunctionParameter.objects.get(function__condition__transition__name=transition_name, workflow=workflow,
-            name="user_ids")
-        param_value = json.loads(param.value)
-        param_value.append(user_id)
-        param.value = json.dumps(param_value)
-        param.save()
+        for param in FunctionParameter.objects.filter(
+                function__condition__transition__group__transitions__name=transition_name,
+                workflow=workflow,
+                name="user_ids"):
+            param_value = json.loads(param.value)
+            param_value.append(user_id)
+            param.value = json.dumps(param_value)
+            param.save()
 
     @staticmethod
     def remove_user_from_approval(*, workflow: Workflow, transition_name: str, user_id: int):
-        param = FunctionParameter.objects.get(function__condition__transition__name=transition_name, workflow=workflow,
-            name="user_ids")
-        param_value = json.loads(param.value)
-        param_value.remove(user_id)
-        param.value = json.dumps(param_value)
-        param.save()
+        for param in FunctionParameter.objects.filter(
+                function__condition__transition__group__transitions__name=transition_name,
+                workflow=workflow,
+                name="user_ids"):
+            param_value = json.loads(param.value)
+            param_value.remove(user_id)
+            param.value = json.dumps(param_value)
+            param.save()

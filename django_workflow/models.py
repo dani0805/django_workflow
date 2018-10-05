@@ -588,6 +588,7 @@ def _atomic_execution(object_id, object_state_id, transition, user):
         success=True)
     return object_state
 
+
 class StateVariable(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
         editable=False)

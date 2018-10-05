@@ -1,4 +1,5 @@
 import graphene
+import json
 from django_workflow.models import Workflow, State
 from django_workflow.utils import parse_global_ids
 from simple_approval import schema
@@ -84,6 +85,62 @@ class ApprovalWorkflowRemoveParallelApproval(graphene.ClientIDMutation):
         state = State.objects.get(id=state_id)
         SimpleApprovalFactory.remove_approval_step(workflow=workflow, state=state, approve_name=approve_name, variable_name=variable_name, remove_all=remove_all)
         return ApprovalWorkflowRemoveParallelApproval(workflow=workflow)
+
+
+class ApprovalWorkflowAddUserToApproval(graphene.ClientIDMutation):
+    class Input:
+        workflow_id = graphene.String()
+        user_id = graphene.String()
+        transition_name = graphene.String()
+
+    workflow = graphene.Field(schema.ApprovalWorkflowNode)
+
+    @classmethod
+    # @parse_global_ids
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_id: str, transition_name: str):
+        workflow_id = from_global_id(workflow_id)[1]
+        user_id = from_global_id(user_id)[1]
+        workflow = Workflow.objects.get(id=workflow_id)
+        SimpleApprovalFactory.add_user_to_approval(workflow=workflow, transition_name=transition_name, user_id=int(user_id))
+        return workflow
+
+
+class ApprovalWorkflowRemoveUserFromApproval(graphene.ClientIDMutation):
+    class Input:
+        workflow_id = graphene.String()
+        user_id = graphene.String()
+        transition_name = graphene.String()
+
+    workflow = graphene.Field(schema.ApprovalWorkflowNode)
+
+    @classmethod
+    # @parse_global_ids
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_id: str, transition_name: str):
+        workflow_id = from_global_id(workflow_id)[1]
+        user_id = from_global_id(user_id)[1]
+        workflow = Workflow.objects.get(id=workflow_id)
+        SimpleApprovalFactory.remove_user_from_approval(workflow=workflow, transition_name=transition_name,
+            user_id=int(user_id))
+        return workflow
+
+
+class ApprovalWorkflowSetUsersForApproval(graphene.ClientIDMutation):
+    class Input:
+        workflow_id = graphene.String()
+        user_ids = graphene.String()
+        transition_name = graphene.String()
+
+    workflow = graphene.Field(schema.ApprovalWorkflowNode)
+
+    @classmethod
+    # @parse_global_ids
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_ids: str, transition_name: str):
+        workflow_id = from_global_id(workflow_id)[1]
+        user_id_array = [int(from_global_id(user_id)[1]) for user_id in json.loads(user_ids)]
+        workflow = Workflow.objects.get(id=workflow_id)
+        SimpleApprovalFactory.set_users_for_approval(workflow=workflow, transition_name=transition_name,
+            user_ids=user_id_array)
+        return workflow
 
 
 class Mutation(graphene.AbstractType):
