@@ -169,3 +169,4 @@ class Mutation(graphene.AbstractType):
     approval_workflow_add_parallel_approval = ApprovalWorkflowAddParallelApproval.Field()
     approval_workflow_remove_parallel_approval = ApprovalWorkflowRemoveParallelApproval.Field()
     clone_approval_workflow = CloneApprovalWorkflow.Field()
+    set_users_for_approval = ApprovalWorkflowSetUsersForApproval.Field()
