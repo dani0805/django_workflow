@@ -14,16 +14,19 @@ class SimpleApprovalFactory:
         wf = Workflow.objects.create(name=name, object_type=object_model)
         # 3 states
         initial_state = State.objects.create(name="New", workflow=wf, initial=True, active=True)
-        # submitted_state = State.objects.create(name="Submitted", workflow=wf, active=True)
-        # submission = Transition.objects.create(name="Submit for Approval", initial_state=initial_state,
-        #     final_state=submitted_state, automatic=False)
-        # approved_state = submitted_state
-        approved_state = initial_state
-        for i in range(approval_steps):
-            approved_state = SimpleApprovalFactory.insert_approval_step(name="Step {}".format(i), workflow=wf,
-                state=approved_state)
-        approved_state.name = "Approved"
-        approved_state.save()
+        if approval_steps == 0:
+            # without approval : New -> Approved -> Archived
+            approved_state = State.objects.create(name="Approved", workflow=wf, active=True)
+            Transition.objects.create(name="Approve", initial_state=initial_state,
+                final_state=approved_state, automatic=False)
+            SimpleApprovalFactory.set_published_state(workflow=wf, state=approved_state)
+        else:
+            approved_state = initial_state
+            for i in range(approval_steps):
+                approved_state = SimpleApprovalFactory.insert_approval_step(name="Step {}".format(i), workflow=wf,
+                    state=approved_state)
+            approved_state.name = "Approved"
+            approved_state.save()
         archived_state = State.objects.create(name="Archived", workflow=wf, active=False)
         Transition.objects.create(name="Archive", initial_state=approved_state,
             final_state=archived_state, automatic=False)
