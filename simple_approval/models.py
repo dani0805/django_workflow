@@ -7,5 +7,5 @@ from django_workflow.models import Transition
 
 
 class ApprovalGroup(models.Model):
-    transitions = models.ManyToManyField(Transition, on_delete=CASCADE, related_name="group")
+    transitions = models.ManyToManyField(Transition, related_name="group")
 

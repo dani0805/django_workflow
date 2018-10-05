@@ -38,6 +38,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django_workflow',
+    'simple_approval',
     'graphene_django'
 )
 
