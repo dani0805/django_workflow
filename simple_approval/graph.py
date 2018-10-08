@@ -71,10 +71,10 @@ class ApprovalGraph(django_workflow.graph.Graph):
                     nodes.append(
                         {
                             "id": self.node_id_seq,
-                            "state_id": state.id,
+                            "stateId": state.id,
                             "name": name,
                             "type": type,
-                            "state_name": state.name,
+                            "stateName": state.name,
                             "active": state.active,
                             "variables": [{"id": v.id, "name": v.name} for v in state.variable_definitions.all()]
                         }
@@ -82,10 +82,10 @@ class ApprovalGraph(django_workflow.graph.Graph):
                     links.append(
                         {
                             "id":self.link_id_seq,
-                            "transition_id": incoming_transition.id,
+                            "transitionId": incoming_transition.id,
                             "name": incoming_transition.name,
-                            "initial_state": incoming_transition.initial_state.id if incoming_transition.initial_state else None,
-                            "final_state": incoming_transition.final_state.id,
+                            "initialState": incoming_transition.initial_state.id if incoming_transition.initial_state else None,
+                            "finalState": incoming_transition.final_state.id,
                             "source":incoming_transition.initial_state.id if incoming_transition.initial_state else None,
                             "target": self.node_id_seq,
                             "conditions": [Graph.render_condition(c) for c in incoming_transition.condition_set.all()],
@@ -105,8 +105,8 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "transition_id": outgoing_transition.id,
                             "approval_transition_id": approval_transition.id,
                             "name": approval_transition.name,
-                            "initial_state": outgoing_transition.initial_state.id,
-                            "final_state": outgoing_transition.final_state.id,
+                            "initialState": outgoing_transition.initial_state.id,
+                            "finalState": outgoing_transition.final_state.id,
                             "source": self.node_id_seq,
                             "target": outgoing_transition.final_state.id,
                             "approvalConditions": [Graph.render_condition(c) for c in approval_transition.condition_set.all()],
@@ -123,10 +123,10 @@ class ApprovalGraph(django_workflow.graph.Graph):
                 nodes.append(
                     {
                         "id": state.id,
-                        "state_id": state.id,
+                        "stateId": state.id,
                         "name": state.name,
                         "type": type,
-                        "state_name": state.name,
+                        "stateName": state.name,
                         "active": state.active,
                         "variables": [{"id": v.id, "name": v.name} for v in state.variable_definitions.all()]
                     }
@@ -136,10 +136,10 @@ class ApprovalGraph(django_workflow.graph.Graph):
                         links.append(
                             {
                                 "id": self.link_id_seq,
-                                "transition_id": t.id,
+                                "transitionId": t.id,
                                 "name": t.name,
-                                "initial_state": t.initial_state.id if t.initial_state else None,
-                                "final_state": t.final_state.id,
+                                "initialState": t.initial_state.id if t.initial_state else None,
+                                "finalState": t.final_state.id,
                                 "source": t.initial_state.id if t.initial_state else None,
                                 "target": t.final_state.id,
                                 "conditions": [Graph.render_condition(c) for c in

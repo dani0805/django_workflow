@@ -62,7 +62,7 @@ class ApprovalWorkflowAddParallelApproval(graphene.ClientIDMutation):
     class Input:
         workflow_id = graphene.String()
         state_id = graphene.String()
-        parallel_approvals = graphene.Int()
+        # parallel_approvals = graphene.Int()
         approve_name = graphene.String()
         reject_name = graphene.String()
         variable_name = graphene.String()
