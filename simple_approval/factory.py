@@ -27,6 +27,7 @@ class SimpleApprovalFactory:
                     state=approved_state)
             approved_state.name = "Approved"
             approved_state.save()
+        SimpleApprovalFactory.set_published_state(workflow=wf, state=approved_state)
         archived_state = State.objects.create(name="Archived", workflow=wf, active=False)
         Transition.objects.create(name="Archive", initial_state=approved_state,
             final_state=archived_state, automatic=False)
