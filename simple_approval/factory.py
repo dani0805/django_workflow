@@ -120,6 +120,8 @@ class SimpleApprovalFactory:
                 SimpleApprovalFactory.remove_transition(t)
             for t in state.incoming_transitions.all():
                 SimpleApprovalFactory.remove_transition(t)
+            for v in end_state.variable_definitions.all():
+                v.delete()
             for v in state.variable_definitions.all():
                 v.delete()
             state.delete()

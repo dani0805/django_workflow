@@ -62,7 +62,6 @@ class ApprovalWorkflowAddParallelApproval(graphene.ClientIDMutation):
     class Input:
         workflow_id = graphene.String()
         state_id = graphene.String()
-        # parallel_approvals = graphene.Int()
         approve_name = graphene.String()
         reject_name = graphene.String()
         variable_name = graphene.String()
@@ -84,7 +83,6 @@ class ApprovalWorkflowRemoveParallelApproval(graphene.ClientIDMutation):
     class Input:
         workflow_id = graphene.String()
         state_id = graphene.String()
-        parallel_approvals = graphene.Int()
         approve_name = graphene.String()
         remove_all = graphene.Boolean()
         variable_name = graphene.String()
@@ -93,7 +91,7 @@ class ApprovalWorkflowRemoveParallelApproval(graphene.ClientIDMutation):
 
     @classmethod
     # @parse_global_ids
-    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, approve_name: str, reject_name: str, variable_name: str, remove_all: bool):
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, approve_name: str=None, variable_name: str=None, remove_all: bool=None):
         workflow_id = from_global_id(workflow_id)[1]
         state_id = from_global_id(state_id)[1]
         workflow = Workflow.objects.get(id=workflow_id)
