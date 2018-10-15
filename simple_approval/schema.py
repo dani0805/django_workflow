@@ -25,7 +25,10 @@ class ApprovalWorkflowNode(WorkflowNode):
         filter_fields = ["id", "name"]
 
     def resolve_approval_graph(self, info):
-        return ApprovalGraph(workflow=self).nodes_and_links
+        graph = ApprovalGraph(workflow=self)
+        if not graph.is_connected():
+            print("Graph is not connected: Workflow {}".format(self.id))
+        return graph.nodes_and_links
 
 
 class ApprovalWorkflowFilter(django_filters.FilterSet):

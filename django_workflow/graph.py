@@ -50,8 +50,8 @@ class Graph:
             start_node = graph["nodes"][0]
         node_encoutered.add(start_node["id"])
         if len(node_encoutered) != len(graph["nodes"]):
-            outgoing_links = filter(lambda link: link["final_state"] == start_node["id"], graph["links"])
-            for node_id in map(lambda link: link["final_state"], outgoing_links):
+            outgoing_links = filter(lambda link: link["source"] == start_node["id"], graph["links"])
+            for node_id in list(map(lambda link: link["target"], outgoing_links)):
                 if node_id not in node_encoutered:
                     node = list(filter(lambda node: node["id"] == node_id, graph["nodes"]))[0]
                     if self.is_connected(node_encoutered, node, graph):

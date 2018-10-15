@@ -4,6 +4,7 @@ from django_workflow.models import Workflow, State, Transition, StateVariableDef
     CallbackParameter, \
     Condition, FunctionParameter
 from simple_approval.models import ApprovalGroup
+from simple_approval.graph import ApprovalGraph
 
 
 class SimpleApprovalFactory:
@@ -105,7 +106,7 @@ class SimpleApprovalFactory:
             # we are removing the entire approval, i.e. we grab the state before and the state after merge it in
             # one state
             start_state = state.incoming_transitions.all().first().initial_state
-            end_state = state.outgoing_transitions.filter(final_state__initial=False).first().final_state
+            end_state = state.outgoing_transitions.filter(final_state__initial=False).exclude(final_state=state).first().final_state
             for t in end_state.outgoing_transitions.all():
                 t.initial_state = start_state
                 t.save()
@@ -137,6 +138,10 @@ class SimpleApprovalFactory:
             variable_def.delete()
         else:
             raise ValueError("either approve_name or variable_name is provided or remove_all must be true")
+        # check graph integrity and raise error if it is not connected
+        graph = ApprovalGraph(workflow=workflow)
+        if not graph.is_connected():
+            raise Exception("Graph is not connected")
 
     @staticmethod
     def remove_transition(transition: Transition):
