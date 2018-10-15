@@ -5,6 +5,7 @@ from django_workflow.models import Workflow, State, Transition, StateVariableDef
     Condition, FunctionParameter
 from simple_approval.models import ApprovalGroup
 from simple_approval.graph import ApprovalGraph
+import uuid
 
 
 class SimpleApprovalFactory:
@@ -167,8 +168,9 @@ class SimpleApprovalFactory:
     def add_parallel_approval(*, workflow: Workflow, state: State, approve_label: str = 'Approve', reject_label: str = 'Reject',
             variable_name: str):
         # set unique names for the transition
-        approve_name = 'Approve-{}-{}'.format(workflow.id, state.id)
-        reject_name = 'Reject-{}-{}'.format(workflow.id, state.id)
+        unique = str(uuid.uuid4()).replace("-", '')
+        approve_name = 'Approve-{}-{}'.format(workflow.id, state.id) + unique
+        reject_name = 'Reject-{}-{}'.format(workflow.id, state.id) + unique
 
         # for each parallel approval we create an extended state variable holding a boolean value
         StateVariableDef.objects.create(workflow=workflow, state=state, name=variable_name)
