@@ -51,13 +51,9 @@ class SimpleApprovalFactory:
             final_state=in_approval_state, automatic=True)
         for i in range(parallel_approvals):
             variable_name = "Approval {} {}".format(name, i)
-            parallel_approval_name = "Approve {} {}".format(name, i)
-            parallel_rejection_name = "Reject {} {}".format(name, i)
             SimpleApprovalFactory.add_parallel_approval(
                 workflow=workflow,
                 state=in_approval_state,
-                approve_name=parallel_approval_name,
-                reject_name=parallel_rejection_name,
                 variable_name=variable_name
             )
         # this automatic transition will be activated once all state variable are positive
@@ -163,20 +159,24 @@ class SimpleApprovalFactory:
         condition.delete()
 
     @staticmethod
-    def add_parallel_approval(*, workflow: Workflow, state: State, approve_name: str, reject_name: str,
+    def add_parallel_approval(*, workflow: Workflow, state: State, approve_label: str = 'Approve', reject_label: str = 'Reject',
             variable_name: str):
+        # set unique names for the transition
+        approve_name = 'Approve-{}-{}'.format(workflow.id, state.id)
+        reject_name = 'Reject-{}-{}'.format(workflow.id, state.id)
+
         # for each parallel approval we create an extended state variable holding a boolean value
         StateVariableDef.objects.create(workflow=workflow, state=state, name=variable_name)
         # for each parallel approval we define a independent transition so we can manage the right to
         # execute them with independent function parameters
         approval = Transition.objects.create(name=approve_name, initial_state=state,
-            final_state=state, automatic=False)
+            final_state=state, automatic=False, label=approve_label)
         SimpleApprovalFactory.set_approval_condtions(transition=approval, workflow=workflow)
         # reject should send the object back to the workflow initial state
         reject = Transition.objects.create(
             name=reject_name,
             initial_state=state,
-            final_state=workflow.initial_state, automatic=False
+            final_state=workflow.initial_state, automatic=False, label=reject_label
         )
         SimpleApprovalFactory.set_approval_condtions(transition=reject, workflow=workflow)
         # on approval we update the state variable as positive

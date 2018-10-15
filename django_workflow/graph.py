@@ -21,6 +21,7 @@ class Graph:
             {
                 "id": t.id,
                 "name": t.name,
+                "label": t.label,
                 "initial_state": t.initial_state.id if t.initial_state else None,
                 "final_state": t.final_state.id,
                 "conditions": [Graph.render_condition(c) for c in t.condition_set.all()],
@@ -30,7 +31,6 @@ class Graph:
             for t in self.workflow.transition_set.all()
         ]
         return {"nodes": nodes, "links":links}
-
 
     def is_connected(self, node_encoutered = None, start_node=None, graph=None) -> bool:
         """

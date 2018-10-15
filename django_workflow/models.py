@@ -231,6 +231,7 @@ class Transition(models.Model):
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
         editable=False)
     name = models.CharField(max_length=50, verbose_name=ugettext_lazy("Name"))
+    label = models.CharField(max_length=50, verbose_name=ugettext_lazy("Label"), null=True, blank=True)
     description = models.CharField(max_length=400, null=True, blank=True, verbose_name=ugettext_lazy("Description"))
     initial_state = models.ForeignKey(State, on_delete=SET_NULL, null=True, blank=True,
         verbose_name=ugettext_lazy("Initial State"),

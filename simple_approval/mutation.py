@@ -65,20 +65,18 @@ class ApprovalWorkflowAddParallelApproval(graphene.ClientIDMutation):
     class Input:
         workflow_id = graphene.String()
         state_id = graphene.String()
-        approve_name = graphene.String()
-        reject_name = graphene.String()
         variable_name = graphene.String()
 
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
     @atomic
-    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, approve_name: str, reject_name: str, variable_name: str):
+    def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, variable_name: str):
         workflow_id = from_global_id(workflow_id)[1]
         state_id = from_global_id(state_id)[1]
         workflow = Workflow.objects.get(id=workflow_id)
         state = State.objects.get(id=state_id)
-        SimpleApprovalFactory.add_parallel_approval(workflow=workflow, state=state, approve_name=approve_name, reject_name=reject_name, variable_name=variable_name)
+        SimpleApprovalFactory.add_parallel_approval(workflow=workflow, state=state, variable_name=variable_name)
         return ApprovalWorkflowAddParallelApproval(workflow=workflow)
 
 
