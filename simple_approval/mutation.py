@@ -154,7 +154,7 @@ class ApprovalWorkflowSetUsersForApproval(graphene.ClientIDMutation):
         workflow = Workflow.objects.get(id=workflow_id)
         SimpleApprovalFactory.set_users_for_approval(workflow=workflow, transition_name=transition_name,
             user_ids=user_id_array)
-        return workflow
+        return ApprovalWorkflowSetUsersForApproval(workflow=workflow)
 
 
 class Mutation(graphene.AbstractType):
