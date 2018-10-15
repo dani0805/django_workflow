@@ -31,6 +31,36 @@ class Graph:
         ]
         return {"nodes": nodes, "links":links}
 
+
+    def is_connected(self, node_encoutered = None, start_node=None, graph=None) -> bool:
+        """
+        Determines if a graph is connected, recursive function that checks if, starting from a node, a path
+        exists from the starting node to the others
+        :param node_encoutered: set([node])
+        :param start_node:
+        :param graph: result of nodes_and_links, passed as parameters for performance
+        :return:
+        """
+        if graph is None:
+            graph = self.nodes_and_links
+        # first time initialize the set
+        if node_encoutered is None:
+            node_encoutered = set()
+        if not start_node:
+            start_node = graph["nodes"][0]
+        node_encoutered.add(start_node["id"])
+        if len(node_encoutered) != len(graph["nodes"]):
+            outgoing_links = filter(lambda link: link["final_state"] == start_node["id"], graph["links"])
+            for node_id in map(lambda link: link["final_state"], outgoing_links):
+                if node_id not in node_encoutered:
+                    node = list(filter(lambda node: node["id"] == node_id, graph["nodes"]))[0]
+                    if self.is_connected(node_encoutered, node, graph):
+                        return True
+        else:
+            return True
+        return False
+
+
     @staticmethod
     def render_condition(condition: Condition) -> dict:
         condition_dict = {

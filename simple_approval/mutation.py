@@ -5,6 +5,7 @@ from django_workflow.utils import parse_global_ids
 from simple_approval import schema
 from simple_approval.factory import SimpleApprovalFactory
 from graphql_relay import from_global_id
+from django.db.transaction import atomic
 
 
 class CreateApprovalWorkflow(graphene.ClientIDMutation):
@@ -17,6 +18,7 @@ class CreateApprovalWorkflow(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, name: str, object_type: str, user_model: str, approval_steps: int):
         workflow = SimpleApprovalFactory.new_approval_workflow(name=name,object_model=object_type, user_model=user_model, approval_steps=approval_steps)
 
@@ -31,6 +33,7 @@ class CloneApprovalWorkflow(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
+    @atomic
     @parse_global_ids()
     def mutate_and_get_payload(cls, root, info, **input):
         workflow = Workflow.objects.get(pk=input.get('workflow_id'))
@@ -48,7 +51,7 @@ class ApprovalWorkflowAddApprovalStep(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, name: str, parallel_approvals: int = 1):
         workflow_id = from_global_id(workflow_id)[1]
         state_id = from_global_id(state_id)[1]
@@ -69,7 +72,7 @@ class ApprovalWorkflowAddParallelApproval(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, approve_name: str, reject_name: str, variable_name: str):
         workflow_id = from_global_id(workflow_id)[1]
         state_id = from_global_id(state_id)[1]
@@ -90,7 +93,7 @@ class ApprovalWorkflowRemoveParallelApproval(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, state_id: str, approve_name: str=None, variable_name: str=None, remove_all: bool=None):
         workflow_id = from_global_id(workflow_id)[1]
         state_id = from_global_id(state_id)[1]
@@ -109,7 +112,7 @@ class ApprovalWorkflowAddUserToApproval(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_id: str, transition_name: str):
         workflow_id = from_global_id(workflow_id)[1]
         user_id = from_global_id(user_id)[1]
@@ -127,7 +130,7 @@ class ApprovalWorkflowRemoveUserFromApproval(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_id: str, transition_name: str):
         workflow_id = from_global_id(workflow_id)[1]
         user_id = from_global_id(user_id)[1]
@@ -146,7 +149,7 @@ class ApprovalWorkflowSetUsersForApproval(graphene.ClientIDMutation):
     workflow = graphene.Field(schema.ApprovalWorkflowNode)
 
     @classmethod
-    # @parse_global_ids
+    @atomic
     def mutate_and_get_payload(cls, root, info, *, workflow_id: str, user_ids: str, transition_name: str):
         workflow_id = from_global_id(workflow_id)[1]
         user_id_array = [int(from_global_id(user_id)[1]) for user_id in json.loads(user_ids)]
