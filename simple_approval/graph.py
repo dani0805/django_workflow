@@ -76,6 +76,7 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             "type": type,
                             "stateName": state.name,
                             "active": state.active,
+                            "initial": state.initial,
                             "variables": [{"id": v.id, "name": v.name} for v in state.variable_definitions.all()]
                         }
                     )
@@ -130,6 +131,7 @@ class ApprovalGraph(django_workflow.graph.Graph):
                         "type": type,
                         "stateName": state.name,
                         "active": state.active,
+                        "initial": state.initial,
                         "variables": [{"id": v.id, "name": v.name} for v in state.variable_definitions.all()]
                     }
                 )
