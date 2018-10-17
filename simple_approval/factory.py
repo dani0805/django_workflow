@@ -27,7 +27,7 @@ class SimpleApprovalFactory:
             for i in range(approval_steps):
                 approved_state = SimpleApprovalFactory.insert_approval_step(name="Step {}".format(i), workflow=wf,
                     state=approved_state)
-            approved_state.name = "Approved"
+            approved_state.name = "Approved {}".format(i)
             approved_state.save()
         SimpleApprovalFactory.set_published_state(workflow=wf, state=approved_state)
         archived_state = State.objects.create(name="Archived", workflow=wf, active=False)
@@ -44,13 +44,18 @@ class SimpleApprovalFactory:
         # remove all outgoing transitions from initial state and attach them to approved state
         for t in state.outgoing_transitions.all():
             t.initial_state = approved_state
+            # if the transition was origination from the first state then it was a manual submission,
+            # in this case we must change it to automatic
+            t.automatic = True
             t.save()
         # create a middle step that will hold the object until all approvals are granted
         in_approval_state = State.objects.create(name="Submitted for {} Approval".format(name), workflow=workflow,
             active=True)
-        # submission goes from the initial state to the in_approval
+        # submission goes from the initial state to the in_approval, if is the submission from new
+        # then manual, otherwise automatic
+        is_not_first = state.incoming_transitions.all().count() > 0
         Transition.objects.create(name="Set In Approval {}".format(name), initial_state=state,
-            final_state=in_approval_state, automatic=True)
+            final_state=in_approval_state, automatic=is_not_first)
         for i in range(parallel_approvals):
             variable_name = "Approval {} {}".format(name, i)
             SimpleApprovalFactory.add_parallel_approval(
@@ -108,7 +113,11 @@ class SimpleApprovalFactory:
             # one state
             start_state = state.incoming_transitions.all().first().initial_state
             end_state = state.outgoing_transitions.filter(final_state__initial=False).exclude(final_state=state).first().final_state
+            is_not_first = start_state.incoming_transitions.all().count() > 0
             for t in end_state.outgoing_transitions.all():
+                # submission goes from the initial state to the in_approval, if is the submission from new
+                # then manual, otherwise automatic
+                t.automatic = is_not_first
                 t.initial_state = start_state
                 t.save()
             # and remove everything in between
@@ -122,6 +131,8 @@ class SimpleApprovalFactory:
                 v.delete()
             for v in state.variable_definitions.all():
                 v.delete()
+            if SimpleApprovalFactory.is_published(state=end_state, workflow=workflow):
+                SimpleApprovalFactory.set_published_state(state=start_state, workflow=workflow)
             state.delete()
             end_state.delete()
         elif variable_name:
@@ -208,39 +219,50 @@ class SimpleApprovalFactory:
 
     @staticmethod
     def set_approval_condtions(*, transition, workflow):
-        condition = Condition.objects.create(condition_type="function", workflow=workflow, transition=transition)
-        funct = Function.objects.create(
+        condition = Condition.objects.create(condition_type="and", workflow=workflow, transition=transition)
+        condition1 = Condition.objects.create(condition_type="function", workflow=workflow, parent_condition=condition)
+        funct1 = Function.objects.create(
             workflow=workflow,
             function_name="is_approver",
             function_module="simple_approval.conditions",
-            condition=condition
+            condition=condition1
         )
         FunctionParameter.objects.create(
             workflow=workflow,
-            function=funct,
+            function=funct1,
             name="user_ids",
             value=json.dumps([])
         )
         FunctionParameter.objects.create(
             workflow=workflow,
-            function=funct,
+            function=funct1,
             name="roles",
             value=json.dumps([])
         )
 
+        condition2 = Condition.objects.create(condition_type="function", workflow=workflow, parent_condition=condition)
+        funct2 = Function.objects.create(
+            workflow=workflow,
+            function_name="is_not_approved",
+            function_module="simple_approval.conditions",
+            condition=condition2
+        )
+
+
     @staticmethod
     def set_users_for_approval(*, workflow: Workflow, transition_name: str, user_ids: [int]):
         for param in FunctionParameter.objects.filter(
-                function__condition__transition__group__transitions__name=transition_name,
+                function__condition__parent_condition__transition__group__transitions__name=transition_name,
                 workflow=workflow,
                 name="user_ids"):
+            #print("updating", param)
             param.value = json.dumps(user_ids)
             param.save()
 
     @staticmethod
     def add_user_to_approval(*, workflow: Workflow, transition_name: str, user_id: int):
         for param in FunctionParameter.objects.filter(
-                function__condition__transition__group__transitions__name=transition_name,
+                function__condition__parent_condition__transition__group__transitions__name=transition_name,
                 workflow=workflow,
                 name="user_ids"):
             param_value = json.loads(param.value)
@@ -251,7 +273,7 @@ class SimpleApprovalFactory:
     @staticmethod
     def remove_user_from_approval(*, workflow: Workflow, transition_name: str, user_id: int):
         for param in FunctionParameter.objects.filter(
-                function__condition__transition__group__transitions__name=transition_name,
+                function__condition__parent_condition__transition__group__transitions__name=transition_name,
                 workflow=workflow,
                 name="user_ids"):
             param_value = json.loads(param.value)

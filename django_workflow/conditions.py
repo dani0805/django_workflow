@@ -68,7 +68,7 @@ def other_filter_exist(*, workflow, object_id, user, object_state, **kwargs):
         raise ValueError("missing parameter model_type")
 
 
-def parse_parameters(*, workflow, object_id, user, object_state, **kwargs):
+def parse_parameters(*, workflow, object_id, user, object_state, transition=None, **kwargs):
     params = dict()
     #print(filter)
     for k, v in kwargs.items():

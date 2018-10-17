@@ -23,7 +23,7 @@ def get_available_transitions(workflow_name, user, object_id):
     return transitions
 
 
-def get_object_state(workflow_name, object_id):
+def get_object_state(workflow_name: str, object_id: str) -> State:
     wf = get_workflow(workflow_name)
     if not wf:
         raise ValueError("wokflow {} not found!".format(workflow_name))

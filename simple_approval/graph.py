@@ -82,13 +82,13 @@ class ApprovalGraph(django_workflow.graph.Graph):
                     )
                     links.append(
                         {
-                            "id":self.link_id_seq,
+                            "id": self.link_id_seq,
                             "transitionId": incoming_transition.id,
                             "name": incoming_transition.name,
                             "label": incoming_transition.label,
                             "initialState": incoming_transition.initial_state.id if incoming_transition.initial_state else None,
                             "finalState": incoming_transition.final_state.id,
-                            "source":incoming_transition.initial_state.id if incoming_transition.initial_state else None,
+                            "source": incoming_transition.initial_state.id if incoming_transition.initial_state else None,
                             "target": self.node_id_seq,
                             "conditions": [Graph.render_condition(c) for c in incoming_transition.condition_set.all()],
                             "callbacks": [Graph.render_callback(k) for k in incoming_transition.callback_set.all()]
@@ -154,3 +154,34 @@ class ApprovalGraph(django_workflow.graph.Graph):
                             }
                         )
         return nodes, links
+
+    def is_connected(self, node_encountered=None, start_node=None, graph=None) -> bool:
+        """
+        Determines if a graph is connected, recursive function that checks if, starting from a node, a path
+        exists from the starting node to the others
+        :param node_encountered: set([node])
+        :param start_node:
+        :param graph: result of nodes_and_links, passed as parameters for performance
+        :return:
+        """
+        if graph is None:
+            graph = self.nodes_and_links
+        # first time initialize the set
+        if node_encountered is None:
+            node_encountered = set()
+        if not start_node:
+            start_node = list(filter(lambda x: x["stateId"] == self.workflow.initial_state.id, graph["nodes"]))[0]
+        node_encountered.add(start_node["id"])
+        #print(start_node["name"])
+        if len(node_encountered) != len(graph["nodes"]):
+            outgoing_links = list(filter(lambda link: link["source"] == start_node["id"], graph["links"]))
+            #print(len(list(map(lambda link: link["target"], outgoing_links))))
+            for node_id in list(map(lambda link: link["target"], outgoing_links)):
+                if node_id not in node_encountered:
+                    node = list(filter(lambda node: node["id"] == node_id, graph["nodes"]))[0]
+                    if self.is_connected(node_encountered, node, graph):
+                        return True
+        else:
+            return True
+        #print(len(node_encountered), len(graph["nodes"]))
+        return False

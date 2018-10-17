@@ -333,29 +333,31 @@ class Condition(models.Model):
             p = p.parent_condition
         return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
 
-    def check_condition(self, *, object_id, user, object_state):
+    def check_condition(self, *, object_id, user, object_state, transition=None):
         if self.condition_type == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
             wf = self.workflow
-            result = call(workflow=wf, user=user, object_id=object_id, object_state=object_state, **params)
+            result = call(workflow=wf, user=user, object_id=object_id, object_state=object_state, transition=transition, **params)
             if result is None:
                 result = False
-            # print("{}.{} ({}, {}, {}, **{}) = {}".format(func.function_module,func.function_name, wf, user,
+            # #print("{}.{} ({}, {}, {}, **{}) = {}".format(func.function_module,func.function_name, wf, user,
             # object_id, params, result))
             return result
             # Not recursive
         elif self.condition_type == "not":
             return not self.child_conditions.first().check_condition(user=user, object_id=object_id,
-                object_state=object_state)
+                object_state=object_state, transition=transition)
             # Recursive
         elif self.condition_type == "and":
-            return all([c.check_condition(user=user, object_id=object_id, object_state=object_state) for c in
+            #print([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
+                #self.child_conditions.all()])
+            return all([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
                 self.child_conditions.all()])
             # Recursive
         elif self.condition_type == "or":
-            return any([c.check_condition(user=user, object_id=object_id, object_state=object_state) for c in
+            return any([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
                 self.child_conditions.all()])
 
     def clone(self, *, workflow: Workflow, **defaults) -> ('Condition', 'Condition'):
@@ -500,7 +502,7 @@ class TransitionLog(models.Model):
 
 def _is_transition_available(transition, user, object_id, object_state_id=None, automatic=False,
         last_transition=None):
-    # print("checking if {} available on obj id {}".format(transition.name, object_id))
+    # #print("checking if {} available on obj id {}".format(transition.name, object_id))
     if transition.is_initial:
         return transition.workflow.is_initial_transition_available(user=user, object_id=object_id,
             object_state_id=object_state_id,
@@ -516,20 +518,20 @@ def _is_transition_available(transition, user, object_id, object_state_id=None, 
         if last_transition is None:
             last_transition = object_state.updated_ts
         if automatic != transition.automatic:
-            # print("not executing because of automatic setting")
+            #print("not executing because of automatic setting")
             return False
         if automatic \
                 and transition.automatic_delay is not None \
                 and last_transition is not None \
                 and django_now() - last_transition < timedelta(days=transition.automatic_delay):
-            # print("not executing because of delay")
+            #print("not executing because of delay")
             return False
         root_condition = transition.condition_set.filter(parent_condition__isnull=True)
         condition_checks = True
         if root_condition.exists():
             condition_checks = root_condition.first().check_condition(user=user, object_id=object_id, object_state
-            =object_state)
-        # print("condition_checks: {}".format(condition_checks))
+            =object_state, transition=transition)
+        #print("condition_checks: {}".format(condition_checks))
         return condition_checks
     else:
         return False
@@ -540,7 +542,7 @@ def _execute_transition(*, transition, user, object_id, object_state_id, automat
         raise RecursionError("too many chained automatic transitions")
     if transition.is_available(user=user, object_id=object_id, object_state_id=object_state_id, automatic=automatic,
             last_transition=last_transition):
-        # print("transition {} available on {}".format(transition, object_id))
+        # #print("transition {} available on {}".format(transition, object_id))
         # first execute all sync callbacks within then update the log and state tables all within a transaction
         object_state = _atomic_execution(object_id, object_state_id, transition, user)
         # now trigger all async callbacks
@@ -566,7 +568,7 @@ def _execute_atomatic_transitions(state, object_id, object_state_id, async=False
 @transaction.atomic
 def _atomic_execution(object_id, object_state_id, transition, user):
     # we first change status for consistency, exceptions in callbacks could break the process
-    # print("executing transition {} on object id {}".format(transition.name, object_id))
+    # #print("executing transition {} on object id {}".format(transition.name, object_id))
     object_state = None
     if transition.initial_state is not None:
         if object_state_id:
@@ -581,7 +583,7 @@ def _atomic_execution(object_id, object_state_id, transition, user):
     else:
         object_state = CurrentObjectState.objects.create(object_id=object_id, state=transition.final_state)
     for c in transition.callback_set.filter(execute_async=False):
-        # print("executing {}.{}".format(c.function_module, c.function_name))
+        # #print("executing {}.{}".format(c.function_module, c.function_name))
         params = {p.name: p.value for p in c.parameters.all()}
         c.function(workflow=transition.final_state.workflow, user=user, object_id=object_id,
             object_state=object_state, **params)

@@ -7,6 +7,75 @@ from snapshottest import Snapshot
 
 snapshots = Snapshot()
 
+snapshots['WorkflowTest::test_clone 1'] = {
+    'data': {
+        'workflowList': {
+            'edges': [
+                {
+                    'node': {
+                        'id': 'V29ya2Zsb3dOb2RlOjE=',
+                        'initialPrefetch': '''
+                             {
+                                "username":"admin",
+                                "date_joined__gte":"today - 24*3600"
+                             }
+                             ''',
+                        'initialState': {
+                            'id': 'U3RhdGVOb2RlOjE=',
+                            'name': 'state 1'
+                        },
+                        'initialTransition': {
+                            'id': 'VHJhbnNpdGlvbk5vZGU6MQ==',
+                            'name': 'auto_initial'
+                        },
+                        'name': 'Test_Workflow',
+                        'objectType': 'django.contrib.auth.models.User'
+                    }
+                },
+                {
+                    'node': {
+                        'id': 'V29ya2Zsb3dOb2RlOjI=',
+                        'initialPrefetch': "{'foo':'bar'}",
+                        'initialState': {
+                            'id': 'U3RhdGVOb2RlOjQ=',
+                            'name': 'state 1'
+                        },
+                        'initialTransition': {
+                            'id': 'VHJhbnNpdGlvbk5vZGU6Nw==',
+                            'name': 'auto_initial'
+                        },
+                        'name': 'New Clone Test',
+                        'objectType': 'django.contrib.auth.models.User'
+                    }
+                }
+            ]
+        }
+    }
+}
+
+snapshots['WorkflowTest::test_clone 2'] = {
+    'data': {
+        'workflowList': {
+            'edges': [
+                {
+                    'node': {
+                        'graph': '{"nodes": [{"id": 1, "name": "state 1", "active": true, "variables": []}, {"id": 2, "name": "state 2", "active": true, "variables": []}, {"id": 3, "name": "state 3", "active": false, "variables": []}], "links": [{"id": 1, "name": "auto_initial", "label": null, "initial_state": null, "final_state": 1, "conditions": [{"id": 2, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 3, "name": "attribute_name", "value": "username", "function": 2, "workflow": 1}, {"id": 4, "name": "attribute_value", "value": "{{ object.username }}", "function": 2, "workflow": 1}]}], "sub_conditions": []}], "callbacks": []}, {"id": 4, "name": "manual_1", "label": null, "initial_state": 1, "final_state": 3, "conditions": [], "callbacks": []}, {"id": 6, "name": "manual_2", "label": null, "initial_state": 2, "final_state": 3, "conditions": [{"id": 1, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 1, "name": "attribute_name", "value": "is_superuser", "function": 1, "workflow": 1}, {"id": 2, "name": "attribute_value", "value": "True", "function": 1, "workflow": 1}]}], "sub_conditions": []}], "callbacks": []}, {"id": 3, "name": "auto_slow", "label": null, "initial_state": 1, "final_state": 3, "conditions": [], "callbacks": []}, {"id": 5, "name": "auto_self", "label": null, "initial_state": 2, "final_state": 2, "conditions": [], "callbacks": []}, {"id": 2, "name": "auto_fast", "label": null, "initial_state": 1, "final_state": 2, "conditions": [], "callbacks": [{"module": "django_workflow.tests", "name": "_print", "parameters": [{"id": 1, "name": "text", "value": "Transition 1 Executed"}]}]}]}',
+                        'id': 'V29ya2Zsb3dOb2RlOjE=',
+                        'name': 'Test_Workflow'
+                    }
+                },
+                {
+                    'node': {
+                        'graph': '{"nodes": [{"id": 4, "name": "state 1", "active": true, "variables": []}, {"id": 5, "name": "state 2", "active": true, "variables": []}, {"id": 6, "name": "state 3", "active": false, "variables": []}], "links": [{"id": 7, "name": "auto_initial", "label": null, "initial_state": null, "final_state": 4, "conditions": [{"id": 3, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 5, "name": "attribute_name", "value": "username", "function": 3, "workflow": 2}, {"id": 6, "name": "attribute_value", "value": "{{ object.username }}", "function": 3, "workflow": 2}]}], "sub_conditions": []}], "callbacks": []}, {"id": 8, "name": "manual_1", "label": null, "initial_state": 4, "final_state": 6, "conditions": [], "callbacks": []}, {"id": 9, "name": "manual_2", "label": null, "initial_state": 5, "final_state": 6, "conditions": [{"id": 4, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 7, "name": "attribute_name", "value": "is_superuser", "function": 4, "workflow": 2}, {"id": 8, "name": "attribute_value", "value": "True", "function": 4, "workflow": 2}]}], "sub_conditions": []}], "callbacks": []}, {"id": 10, "name": "auto_slow", "label": null, "initial_state": 4, "final_state": 6, "conditions": [], "callbacks": []}, {"id": 11, "name": "auto_self", "label": null, "initial_state": 5, "final_state": 5, "conditions": [], "callbacks": []}, {"id": 12, "name": "auto_fast", "label": null, "initial_state": 4, "final_state": 5, "conditions": [], "callbacks": [{"module": "django_workflow.tests", "name": "_print", "parameters": [{"id": 2, "name": "text", "value": "Transition 1 Executed"}]}]}]}',
+                        'id': 'V29ya2Zsb3dOb2RlOjI=',
+                        'name': 'New Clone Test'
+                    }
+                }
+            ]
+        }
+    }
+}
+
 snapshots['WorkflowTest::test_api 1'] = {
     'data': {
         'workflowList': {
@@ -498,75 +567,6 @@ snapshots['WorkflowTest::test_api 10'] = {
                             'id': 'QXBwcm92YWxXb3JrZmxvd05vZGU6Mg==',
                             'name': 'Test_Workflow 3'
                         }
-                    }
-                }
-            ]
-        }
-    }
-}
-
-snapshots['WorkflowTest::test_clone 1'] = {
-    'data': {
-        'workflowList': {
-            'edges': [
-                {
-                    'node': {
-                        'id': 'V29ya2Zsb3dOb2RlOjE=',
-                        'initialPrefetch': '''
-                             {
-                                "username":"admin",
-                                "date_joined__gte":"today - 24*3600"
-                             }
-                             ''',
-                        'initialState': {
-                            'id': 'U3RhdGVOb2RlOjE=',
-                            'name': 'state 1'
-                        },
-                        'initialTransition': {
-                            'id': 'VHJhbnNpdGlvbk5vZGU6MQ==',
-                            'name': 'auto_initial'
-                        },
-                        'name': 'Test_Workflow',
-                        'objectType': 'django.contrib.auth.models.User'
-                    }
-                },
-                {
-                    'node': {
-                        'id': 'V29ya2Zsb3dOb2RlOjI=',
-                        'initialPrefetch': "{'foo':'bar'}",
-                        'initialState': {
-                            'id': 'U3RhdGVOb2RlOjQ=',
-                            'name': 'state 1'
-                        },
-                        'initialTransition': {
-                            'id': 'VHJhbnNpdGlvbk5vZGU6Nw==',
-                            'name': 'auto_initial'
-                        },
-                        'name': 'New Clone Test',
-                        'objectType': 'django.contrib.auth.models.User'
-                    }
-                }
-            ]
-        }
-    }
-}
-
-snapshots['WorkflowTest::test_clone 2'] = {
-    'data': {
-        'workflowList': {
-            'edges': [
-                {
-                    'node': {
-                        'graph': '{"nodes": [{"id": 1, "name": "state 1", "active": true, "variables": []}, {"id": 2, "name": "state 2", "active": true, "variables": []}, {"id": 3, "name": "state 3", "active": false, "variables": []}], "links": [{"id": 1, "name": "auto_initial", "initial_state": null, "final_state": 1, "conditions": [{"id": 2, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 3, "name": "attribute_name", "value": "username"}, {"id": 4, "name": "attribute_value", "value": "{{ object.username }}"}]}], "sub_conditions": []}], "callbacks": []}, {"id": 4, "name": "manual_1", "initial_state": 1, "final_state": 3, "conditions": [], "callbacks": []}, {"id": 6, "name": "manual_2", "initial_state": 2, "final_state": 3, "conditions": [{"id": 1, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 1, "name": "attribute_name", "value": "is_superuser"}, {"id": 2, "name": "attribute_value", "value": "True"}]}], "sub_conditions": []}], "callbacks": []}, {"id": 3, "name": "auto_slow", "initial_state": 1, "final_state": 3, "conditions": [], "callbacks": []}, {"id": 5, "name": "auto_self", "initial_state": 2, "final_state": 2, "conditions": [], "callbacks": []}, {"id": 2, "name": "auto_fast", "initial_state": 1, "final_state": 2, "conditions": [], "callbacks": [{"module": "django_workflow.tests", "name": "_print", "parameters": [{"id": 1, "name": "text", "value": "Transition 1 Executed"}]}]}]}',
-                        'id': 'V29ya2Zsb3dOb2RlOjE=',
-                        'name': 'Test_Workflow'
-                    }
-                },
-                {
-                    'node': {
-                        'graph': '{"nodes": [{"id": 4, "name": "state 1", "active": true, "variables": []}, {"id": 5, "name": "state 2", "active": true, "variables": []}, {"id": 6, "name": "state 3", "active": false, "variables": []}], "links": [{"id": 7, "name": "auto_initial", "initial_state": null, "final_state": 4, "conditions": [{"id": 3, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 5, "name": "attribute_name", "value": "username"}, {"id": 6, "name": "attribute_value", "value": "{{ object.username }}"}]}], "sub_conditions": []}], "callbacks": []}, {"id": 8, "name": "manual_1", "initial_state": 4, "final_state": 6, "conditions": [], "callbacks": []}, {"id": 9, "name": "manual_2", "initial_state": 5, "final_state": 6, "conditions": [{"id": 4, "type": "function", "functions": [{"module": "django_workflow.conditions", "name": "object_attribute_value", "parameters": [{"id": 7, "name": "attribute_name", "value": "is_superuser"}, {"id": 8, "name": "attribute_value", "value": "True"}]}], "sub_conditions": []}], "callbacks": []}, {"id": 10, "name": "auto_slow", "initial_state": 4, "final_state": 6, "conditions": [], "callbacks": []}, {"id": 11, "name": "auto_self", "initial_state": 5, "final_state": 5, "conditions": [], "callbacks": []}, {"id": 12, "name": "auto_fast", "initial_state": 4, "final_state": 5, "conditions": [], "callbacks": [{"module": "django_workflow.tests", "name": "_print", "parameters": [{"id": 2, "name": "text", "value": "Transition 1 Executed"}]}]}]}',
-                        'id': 'V29ya2Zsb3dOb2RlOjI=',
-                        'name': 'New Clone Test'
                     }
                 }
             ]
