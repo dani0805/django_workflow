@@ -46,7 +46,9 @@ class SimpleApprovalFactory:
             t.initial_state = approved_state
             # if the transition was origination from the first state then it was a manual submission,
             # in this case we must change it to automatic
-            t.automatic = True
+            print(t.final_state.name, SimpleApprovalFactory.is_archived(workflow=workflow, state=t.final_state))
+            if not SimpleApprovalFactory.is_archived(workflow=workflow, state=t.final_state):
+                t.automatic = True
             t.save()
         # create a middle step that will hold the object until all approvals are granted
         in_approval_state = State.objects.create(name="Submitted for {} Approval".format(name), workflow=workflow,
@@ -103,7 +105,7 @@ class SimpleApprovalFactory:
 
     @staticmethod
     def is_archived(*, workflow: Workflow, state: State):
-        return StateVariableDef.objects.filter(workflow=workflow, name="approved", state=state).exists()
+        return StateVariableDef.objects.filter(workflow=workflow, name="archived", state=state).exists()
 
     @staticmethod
     def remove_approval_step(*, workflow: Workflow, state: State, approve_name=None, variable_name=None,
