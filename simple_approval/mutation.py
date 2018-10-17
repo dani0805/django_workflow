@@ -157,6 +157,23 @@ class ApprovalWorkflowSetUsersForApproval(graphene.ClientIDMutation):
         return ApprovalWorkflowSetUsersForApproval(workflow=workflow)
 
 
+class ChangeStatusName(graphene.ClientIDMutation):
+    class Input:
+        id = graphene.Int()
+        state_id = graphene.Int()
+        name = graphene.String()
+
+    workflow = graphene.Field(schema.ApprovalWorkflowNode)
+
+    @classmethod
+    @atomic
+    def mutate_and_get_payload(cls, root, info, *, id: int, state_id: int, name: str):
+        state = State.objects.get(id=state_id)
+        workflow = state.workflow
+        SimpleApprovalFactory.change_status_name(state_def_id=id, name=name, state=state)
+        return ChangeStatusName(workflow=workflow)
+
+
 class Mutation(graphene.AbstractType):
     """
     Base end point to define all the other mutations for simple_approval
@@ -169,3 +186,4 @@ class Mutation(graphene.AbstractType):
     approval_workflow_remove_parallel_approval = ApprovalWorkflowRemoveParallelApproval.Field()
     clone_approval_workflow = CloneApprovalWorkflow.Field()
     set_users_for_approval = ApprovalWorkflowSetUsersForApproval.Field()
+    change_status_name = ChangeStatusName.Field()

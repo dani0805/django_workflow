@@ -280,3 +280,15 @@ class SimpleApprovalFactory:
             param_value.remove(user_id)
             param.value = json.dumps(param_value)
             param.save()
+
+    @staticmethod
+    def change_status_name(state_def_id: int, name: str, state: State):
+        state_def = StateVariableDef.objects.get(pk=state_def_id)
+        old_name = state_def.name
+        state_def.name = name
+        state_def.save()
+        state.name = name
+        state.save()
+        variable_name = CallbackParameter.objects.filter(name="variable_name", value=old_name, callback__transition__initial_state_id=state.id).first()
+        variable_name.value = name
+        variable_name.save()
