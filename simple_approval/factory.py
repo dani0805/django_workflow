@@ -83,29 +83,29 @@ class SimpleApprovalFactory:
 
     @staticmethod
     def set_published_state(*, workflow: Workflow, state: State):
-        StateVariableDef.objects.filter(workflow=workflow, name="approved").delete()
+        StateVariableDef.objects.filter(workflow=workflow, name__iexact="approved").delete()
         StateVariableDef.objects.create(workflow=workflow, name="approved", state=state)
 
     @staticmethod
     def get_published_state(*, workflow: Workflow) -> State:
-        return State.objects.get(workflow=workflow, variable_definitions__name="approved")
+        return State.objects.get(workflow=workflow, variable_definitions__name__iexact="approved")
 
     @staticmethod
     def is_published(*, workflow: Workflow, state: State):
-        return StateVariableDef.objects.filter(workflow=workflow, name="approved", state=state).exists()
+        return StateVariableDef.objects.filter(workflow=workflow, name__iexact="approved", state=state).exists()
 
     @staticmethod
     def set_archived_state(*, workflow: Workflow, state: State):
-        StateVariableDef.objects.filter(workflow=workflow, name="archived").delete()
+        StateVariableDef.objects.filter(workflow=workflow, name__iexact="archived").delete()
         StateVariableDef.objects.create(workflow=workflow, name="archived", state=state)
 
     @staticmethod
     def get_archived_state(*, workflow: Workflow) -> State:
-        return State.objects.get(workflow=workflow, variable_definitions__name="archived")
+        return State.objects.get(workflow=workflow, variable_definitions__name__iexact="archived")
 
     @staticmethod
     def is_archived(*, workflow: Workflow, state: State):
-        return StateVariableDef.objects.filter(workflow=workflow, name="archived", state=state).exists()
+        return StateVariableDef.objects.filter(workflow=workflow, name__iexact="archived", state=state).exists()
 
     @staticmethod
     def remove_approval_step(*, workflow: Workflow, state: State, approve_name=None, variable_name=None,
@@ -138,7 +138,7 @@ class SimpleApprovalFactory:
             state.delete()
             end_state.delete()
         elif variable_name:
-            transition = state.outgoing_transitions.get(final_state=state, callback__parameters__name="variable_name",
+            transition = state.outgoing_transitions.get(final_state=state, callback__parameters__name__iexact="variable_name",
                 callback__parameters__value=variable_name)
             variable_def = state.variable_definitions.filter(name=variable_name)
             SimpleApprovalFactory.remove_transition(transition)
@@ -146,7 +146,7 @@ class SimpleApprovalFactory:
         elif approve_name:
             transition = state.outgoing_transitions.get(final_state=state,
                 name=approve_name)
-            variable_name = CallbackParameter.objects.get(callback__transition=transition, name="variable_name").value
+            variable_name = CallbackParameter.objects.get(callback__transition=transition, name__iexact="variable_name").value
             variable_def = state.variable_definitions.filter(name=variable_name)
             SimpleApprovalFactory.remove_transition(transition)
             variable_def.delete()
