@@ -189,7 +189,7 @@ class State(models.Model):
     def clone(self, *, workflow: Workflow, **defaults) -> ('State', 'State'):
         new_state, old_state = clone(self, workflow=workflow, **defaults)
         for variableDef in old_state.variable_definitions.all():
-            new_var, _ = clone(variableDef, state=new_state, **defaults)
+            new_var, _ = clone(variableDef, state=new_state, workflow=workflow, **defaults)
         return new_state, old_state
 
 
