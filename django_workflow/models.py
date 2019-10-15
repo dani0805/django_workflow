@@ -303,7 +303,7 @@ class Condition(models.Model):
     ]
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
         editable=False)
-    condition_type = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
+    condition_typ = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
     parent_condition = models.ForeignKey("Condition", on_delete=SET_NULL, null=True, blank=True,
         verbose_name=ugettext_lazy("Parent Condition"),
         related_name="child_conditions")
@@ -329,12 +329,12 @@ class Condition(models.Model):
         p = self.parent_condition
         while p is not None:
             transition = p.transition
-            ancestors.insert(0, p.condition_type)
+            ancestors.insert(0, p.condition_typ)
             p = p.parent_condition
-        return "{}: {} -> {}".format(transition, ancestors, self.condition_type)
+        return "{}: {} -> {}".format(transition, ancestors, self.condition_typ)
 
     def check_condition(self, *, object_id, user, object_state, transition=None):
-        if self.condition_type == "function":
+        if self.condition_typ == "function":
             func = self.function_set.first()
             call = func.function
             params = {p.name: p.value for p in func.parameters.all()}
@@ -346,17 +346,17 @@ class Condition(models.Model):
             # object_id, params, result))
             return result
             # Not recursive
-        elif self.condition_type == "not":
+        elif self.condition_typ == "not":
             return not self.child_conditions.first().check_condition(user=user, object_id=object_id,
                 object_state=object_state, transition=transition)
             # Recursive
-        elif self.condition_type == "and":
+        elif self.condition_typ == "and":
             #print([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
                 #self.child_conditions.all()])
             return all([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
                 self.child_conditions.all()])
             # Recursive
-        elif self.condition_type == "or":
+        elif self.condition_typ == "or":
             return any([c.check_condition(user=user, object_id=object_id, object_state=object_state, transition=transition) for c in
                 self.child_conditions.all()])
 

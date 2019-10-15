@@ -54,7 +54,7 @@ Below you can find a simple example of a 3 states workflow with a mix of manual 
     t2 = Transition.objects.create(initial_state=s1, final_state=s3, automatic=False)
     t3 = Transition.objects.create(initial_state=s2, final_state=s3, automatic=False)
     # we set t3 to be executed only by superusers this can be done with a object_attribute_value conditon
-    c1 = Condition.objects.create(condition_type="function", transition=t3)
+    c1 = Condition.objects.create(condition_typ="function", transition=t3)
     f1 = Function.objects.create(
         function_name="object_attribute_value",
         function_module="django_workflow.conditions",

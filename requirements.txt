@@ -1,5 +1,5 @@
-Django=2.1
-graphene-django=2.2
-django-filters=0.2.1
-django-graphiql=0.4.4
-django-rest-framework=0.1.0
+Django==2.1
+graphene-django==2.2
+django-filters==0.2.1
+django-graphiql==0.4.4
+django-rest-framework==0.1.0
