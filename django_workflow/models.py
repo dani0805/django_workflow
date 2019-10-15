@@ -295,15 +295,16 @@ class Transition(models.Model):
 
 
 class Condition(models.Model):
-    CONDITION_TYPES = [
+    """CONDITION_TYPES = [
         ("function", "Function Call"),
         ("and", "Boolean AND"),
         ("or", "Boolean OR"),
         ("not", "Boolean NOT"),
-    ]
+    ]"""
     workflow = models.ForeignKey(Workflow, on_delete=PROTECT, verbose_name=ugettext_lazy("Workflow"),
         editable=False)
-    condition_opt = models.CharField(max_length=10, choices=CONDITION_TYPES, verbose_name=ugettext_lazy("Type"))
+    condition_opt = models.CharField(max_length=10, #choices=CONDITION_TYPES,
+        verbose_name=ugettext_lazy("Type"))
     parent_condition = models.ForeignKey("Condition", on_delete=SET_NULL, null=True, blank=True,
         verbose_name=ugettext_lazy("Parent Condition"),
         related_name="child_conditions")
