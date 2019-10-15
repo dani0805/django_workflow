@@ -69,7 +69,7 @@ class SimpleApprovalFactory:
         all_approvals_completed = Transition.objects.create(name="All {} Approvals Collected".format(name),
             initial_state=in_approval_state,
             final_state=approved_state, automatic=True)
-        all_approvals_condition = Condition.objects.create(condition_typ="function", workflow=workflow,
+        all_approvals_condition = Condition.objects.create(condition_opt="function", workflow=workflow,
             transition=all_approvals_completed)
         Function.objects.create(
             workflow=workflow,
@@ -221,8 +221,8 @@ class SimpleApprovalFactory:
 
     @staticmethod
     def set_approval_condtions(*, transition, workflow):
-        condition = Condition.objects.create(condition_typ="and", workflow=workflow, transition=transition)
-        condition1 = Condition.objects.create(condition_typ="function", workflow=workflow, parent_condition=condition)
+        condition = Condition.objects.create(condition_opt="and", workflow=workflow, transition=transition)
+        condition1 = Condition.objects.create(condition_opt="function", workflow=workflow, parent_condition=condition)
         funct1 = Function.objects.create(
             workflow=workflow,
             function_name="is_approver",
@@ -242,7 +242,7 @@ class SimpleApprovalFactory:
             value=json.dumps([])
         )
 
-        condition2 = Condition.objects.create(condition_typ="function", workflow=workflow, parent_condition=condition)
+        condition2 = Condition.objects.create(condition_opt="function", workflow=workflow, parent_condition=condition)
         funct2 = Function.objects.create(
             workflow=workflow,
             function_name="is_not_approved",

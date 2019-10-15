@@ -109,7 +109,7 @@ class ConditionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Condition
-        fields = ['id', 'condition_typ', 'workflow', 'parent_condition', 'transition']
+        fields = ['id', 'condition_opt', 'workflow', 'parent_condition', 'transition']
 
 
 class ConditionMutation(SerializerMutation):

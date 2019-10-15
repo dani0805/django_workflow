@@ -37,7 +37,7 @@ class Graph:
     def render_condition(condition: Condition) -> dict:
         condition_dict = {
             "id": condition.id,
-            "type": condition.condition_typ,
+            "type": condition.condition_opt,
             "functions": [ Graph.render_function(f) for f in condition.function_set.all()],
             "sub_conditions": [ Graph.render_condition(c) for c in condition.child_conditions.all()]
         }
