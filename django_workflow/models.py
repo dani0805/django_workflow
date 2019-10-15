@@ -128,9 +128,9 @@ class Workflow(models.Model):
     def natural_key(self):
         return (self.name,)
 
-    def add_object(self, object_id, async=True):
+    def add_object(self, object_id, execute_async=True):
         process = CurrentObjectState.objects.create(object_id=object_id, state=self.initial_state)
-        _execute_atomatic_transitions(self.initial_state, object_id, process.id, async=async)
+        _execute_atomatic_transitions(self.initial_state, object_id, process.id, execute_async=execute_async)
         return process
 
     def object_class(self):
@@ -270,8 +270,8 @@ class Transition(models.Model):
         return _is_transition_available(self, user, object_id, object_state_id=object_state_id, automatic=automatic,
             last_transition=last_transition)
 
-    def execute(self, user, object_id, object_state_id=None, async=False, automatic=False):
-        if async:
+    def execute(self, user, object_id, object_state_id=None, execute_async=False, automatic=False):
+        if execute_async:
             thr = threading.Thread(target=_execute_transition, args=(self, user, object_id, object_state_id),
                 kwargs={"automatic": automatic})
             thr.start()
@@ -556,7 +556,7 @@ def _execute_transition(*, transition, user, object_id, object_state_id, automat
             last_transition=django_now())
         return object_state
 
-def _execute_atomatic_transitions(state, object_id, object_state_id, async=False, last_transition=None):
+def _execute_atomatic_transitions(state, object_id, object_state_id, execute_async=False, last_transition=None):
     if not state.active:
         return None
     automatic_transitions = state.outgoing_transitions.filter(automatic=True)

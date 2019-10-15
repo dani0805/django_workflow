@@ -36,7 +36,7 @@ def get_object_state(workflow_name: str, object_id: str) -> State:
         return None
 
 
-def execute_transition(workflow_name, transition_name, user, object_id, async=False):
+def execute_transition(workflow_name, transition_name, user, object_id, execute_async=False):
     state = get_object_state(workflow_name, object_id)
     # silently fail if no state found or action not available
     wf = get_workflow(workflow_name)
@@ -97,4 +97,4 @@ def execute_automatic_transitions(workflow_name=None, object_state_id=None, obje
     if object_id and not workflow_name:
         raise ValueError("object_id cannot be passed without workflow_name")
     for o in objects:
-        _execute_atomatic_transitions(o.state, o.object_id, object_state_id, async=False)
+        _execute_atomatic_transitions(o.state, o.object_id, object_state_id, execute_async=False)

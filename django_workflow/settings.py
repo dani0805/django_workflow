@@ -39,7 +39,8 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django_workflow',
     'simple_approval',
-    'graphene_django'
+    'graphene_django',
+    'django_filters'
 )
 
 MIDDLEWARE_CLASSES = (

@@ -69,7 +69,7 @@ class WorkflowTest(TestCase):
         self.assertTrue(graph.is_connected())
         user = User.objects.get(username="admin")
         user2 = User.objects.get(username="test2")
-        wf.add_object(user.id, async=False)
+        wf.add_object(user.id, execute_async=False)
         manual = workflow.get_available_transitions("Test_Workflow", user, user.id)
         self.assertEqual(len(manual), 1)
         self.assertEqual(manual[0].initial_state.name, "New")
