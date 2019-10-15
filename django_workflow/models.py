@@ -488,11 +488,11 @@ class TransitionLog(models.Model):
     transition = models.ForeignKey(Transition, on_delete=PROTECT, verbose_name=ugettext_lazy("Transition"))
     completed_ts = models.DateTimeField(auto_now=True, verbose_name=ugettext_lazy("Time of Completion"))
     success = models.BooleanField(verbose_name=ugettext_lazy("Success"))
-    ERROR_CODES = [
+    """ERROR_CODES = [
         ("400", "400 - Not Authorized"),
         ("500", "500 - Internal Error"),
-    ]
-    error_code = models.CharField(max_length=5, null=True, blank=True, choices=ERROR_CODES,
+    ]"""
+    error_code = models.CharField(max_length=5, null=True, blank=True, #choices=ERROR_CODES,
         verbose_name=ugettext_lazy("Error Code"))
     error_message = models.CharField(max_length=4000, null=True, blank=True,
         verbose_name=ugettext_lazy("Error Message"))
